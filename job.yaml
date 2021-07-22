@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dpt-benchmark
+spec:
+  template:
+    spec:
+      containers:
+      - name: chris-dpt
+        image: gitlab-registry.nrp-nautilus.io/prp/jupyter-stack/prp
+        command:
+        - "python"
+        args:
+        - "/opt/repo/dynamic-inference/test.py"
+        volumeMounts:
+        - name: git-repo
+          mountPath: /opt/repo
+        resources:
+          limits:
+            memory: 48Gi
+            cpu: "6"
+            nvidia.com/gpu: "1"
+          requests:
+            memory: 4Gi
+            cpu: "1"
+            nvidia.com/gpu: "1"    
+      initContainers:
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+          - clone
+          - --single-branch
+          - https://gitlab.nrp-nautilus.io/christh9/dynamic-inference
+          - /opt/repo/dynamic-inference
+        volumeMounts:
+          - name: git-repo
+            mountPath: /opt/repo
+      volumes:
+      - name: git-repo
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 0
