@@ -15,6 +15,8 @@ spec:
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
+        - name: christh9-pvc
+          mountPath: /christh9-pvc
         resources:
           limits:
             memory: 48Gi
@@ -27,10 +29,21 @@ spec:
       initContainers:
       - name: init-clone-repo
         image: alpine/git
+        env:
+        - name: GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: gitlab-secret
+              key: user    
+        - name: GIT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gitlab-secret
+              key: password    
         args:
           - clone
           - --single-branch
-          - https://gitlab.nrp-nautilus.io/christh9/dynamic-inference
+          - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
           - /opt/repo/dynamic-inference
         volumeMounts:
           - name: git-repo
@@ -38,5 +51,8 @@ spec:
       volumes:
       - name: git-repo
         emptyDir: {}
+      - name: christh9-pvc
+        persistentVolumeClaim:
+          claimName: christh9-pvc
       restartPolicy: Never
   backoffLimit: 0

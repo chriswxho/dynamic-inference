@@ -21,20 +21,26 @@ from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
 
-# In[2]:
+# k8s paths
+k8s = True
+kube_repo = r'opt/repo/dynamic-inference'
+kube_pvc = r'christh9-pvc'
 
-
+# path settings
 input_path = 'input'
 output_path = 'output_monodepth'
 model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
+
+if kube:
+    input_path = os.path.join(kube_repo, input_path)
+    output_path = os.path.join(kube_repo, output_path)
+    model_path = os.path.join(kube_pvc, 'dpt-hybrid-nyu.pt')
+
 model_type = 'dpt_hybrid'
 optimize = True
 
 runs = 500
 timings = np.zeros((runs,2))
-
-
-# In[3]:
 
 
 # select device
@@ -103,9 +109,6 @@ else:
     ), f"model_type '{model_type}' not implemented, use: --model_type [dpt_large|dpt_hybrid|dpt_hybrid_kitti|dpt_hybrid_nyu|midas_v21]"
 
 
-# In[4]:
-
-
 transform = Compose(
     [
         Resize(
@@ -123,9 +126,6 @@ transform = Compose(
 )
 
 
-# In[5]:
-
-
 model.eval()
 
 if optimize == True and device == torch.device("cuda"):
@@ -135,18 +135,12 @@ if optimize == True and device == torch.device("cuda"):
 model.to(device)
 
 
-# In[6]:
-
-
 # get input
 img_names = glob.glob(os.path.join(input_path, "*"))
 num_images = len(img_names)
 
 # create output folder
 os.makedirs(output_path, exist_ok=True)
-
-
-# In[7]:
 
 
 kitti_crop = False
@@ -280,16 +274,7 @@ with torch.no_grad():
         # time decoder
         _, elapsed = decoder(model, sample)
         timings[r,1] = elapsed
-
-
-# In[10]:
-
-
-print(timings[:,0].mean(), timings[:,1].mean())
-
-
-# In[11]:
-
-
-print(timings[:,0].std(), timings[:,1].std())
+        
+print('Mean times:', timings[:,0].mean(), timings[:,1].mean())
+print('Std:', timings[:,0].std(), timings[:,1].std())
 

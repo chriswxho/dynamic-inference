@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-pod
+spec:
+  containers:
+  - name: pvc-container
+    image: ubuntu
+    args: ["sleep", "36500000"]
+    volumeMounts:
+    - mountPath: /christh9-pvc
+      name: christh9-pvc
+  restartPolicy: Never
+  volumes:
+    - name: christh9-pvc
+      persistentVolumeClaim:
+        claimName: christh9-pvc
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: topology.kubernetes.io/region
+            operator: In
+            values:
+            - us-west
