@@ -7,11 +7,11 @@ spec:
     spec:
       containers:
       - name: chris-dpt
-        image: gitlab-registry.nrp-nautilus.io/prp/jupyter-stack/prp
+        image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference:latest
         command:
         - "python"
         args:
-        - "/opt/repo/dynamic-inference/test.py"
+        - "/opt/repo/dynamic-inference/dpt_benchmark.py"
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -55,4 +55,13 @@ spec:
         persistentVolumeClaim:
           claimName: christh9-pvc
       restartPolicy: Never
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: gpu-type
+                  operator: In
+                  values:
+                  - 1080Ti
   backoffLimit: 0

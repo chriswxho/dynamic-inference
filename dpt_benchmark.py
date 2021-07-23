@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import os
 import glob
 import torch
@@ -23,18 +20,18 @@ from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
 # k8s paths
 k8s = True
-kube_repo = r'opt/repo/dynamic-inference'
-kube_pvc = r'christh9-pvc'
+k8s_repo = r'opt/repo/dynamic-inference'
+k8s_pvc = r'../../christh9-pvc'
 
 # path settings
 input_path = 'input'
 output_path = 'output_monodepth'
 model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
 
-if kube:
-    input_path = os.path.join(kube_repo, input_path)
-    output_path = os.path.join(kube_repo, output_path)
-    model_path = os.path.join(kube_pvc, 'dpt-hybrid-nyu.pt')
+if k8s:
+    input_path = os.path.join(k8s_repo, input_path)
+    output_path = os.path.join(k8s_repo, output_path)
+    model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
 
 model_type = 'dpt_hybrid'
 optimize = True
@@ -42,10 +39,11 @@ optimize = True
 runs = 500
 timings = np.zeros((runs,2))
 
-
 # select device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("device: %s" % device)
+if torch.cuda.is_available():
+    print(torch.cuda.get_device_name(0))
 
 # load network
 if model_type == "dpt_large":  # DPT-Large
@@ -135,12 +133,12 @@ if optimize == True and device == torch.device("cuda"):
 model.to(device)
 
 
-# get input
-img_names = glob.glob(os.path.join(input_path, "*"))
-num_images = len(img_names)
+# # get input
+# img_names = glob.glob(os.path.join(input_path, "*"))
+# num_images = len(img_names)
 
-# create output folder
-os.makedirs(output_path, exist_ok=True)
+# # create output folder
+# os.makedirs(output_path, exist_ok=True)
 
 
 kitti_crop = False
@@ -154,13 +152,15 @@ if kitti_crop is True:
     left = (width - 1216) // 2
     img = img[top : top + 352, left : left + 1216, :]
 
-img_input = transform({"image": img})["image"]
+img_input = transform({"image": img})["image"] 
 
-sample = torch.from_numpy(img_input).to(device).unsqueeze(0)
+sample = torch.from_numpy(img_input).unsqueeze(0)
 
 if optimize == True and device == torch.device("cuda"):
     sample = sample.to(memory_format=torch.channels_last)
     sample = sample.half()
+
+sample.to(device)
 
 start, end = None, None
 if device == torch.device('cuda'):
@@ -274,7 +274,11 @@ with torch.no_grad():
         # time decoder
         _, elapsed = decoder(model, sample)
         timings[r,1] = elapsed
-        
+
+# torch times in milliseconds, convert to seconds
+if torch.cuda.is_available():
+    timings = timings / 1000
+    
 print('Mean times:', timings[:,0].mean(), timings[:,1].mean())
 print('Std:', timings[:,0].std(), timings[:,1].std())
 
