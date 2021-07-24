@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import cv2
 import numpy as np
+import pandas as pd
 import time
 
 import util.io
@@ -17,6 +18,11 @@ from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
+# select device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("device: %s" % device)
+device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu'
+print(device_name)
 
 # k8s paths
 k8s = True
@@ -32,6 +38,7 @@ if k8s:
     input_path = os.path.join(k8s_repo, input_path)
     output_path = os.path.join(k8s_repo, output_path)
     model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
+    script_output = os.path.join(k8s_pvc, 'dpt-timings', f'runtimes-{device_name}.csv')
 
 model_type = 'dpt_hybrid'
 optimize = True
@@ -39,11 +46,6 @@ optimize = True
 runs = 500
 timings = np.zeros((runs,2))
 
-# select device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("device: %s" % device)
-if torch.cuda.is_available():
-    print(torch.cuda.get_device_name(0))
 
 # load network
 if model_type == "dpt_large":  # DPT-Large
@@ -154,13 +156,13 @@ if kitti_crop is True:
 
 img_input = transform({"image": img})["image"] 
 
-sample = torch.from_numpy(img_input).unsqueeze(0)
+sample = torch.from_numpy(img_input).to(device).unsqueeze(0)
 
 if optimize == True and device == torch.device("cuda"):
     sample = sample.to(memory_format=torch.channels_last)
     sample = sample.half()
 
-sample.to(device)
+# sample.to(device)
 
 start, end = None, None
 if device == torch.device('cuda'):
@@ -278,7 +280,15 @@ with torch.no_grad():
 # torch times in milliseconds, convert to seconds
 if torch.cuda.is_available():
     timings = timings / 1000
+
+if k8s:
+    os.makedirs(os.path.dirname(script_output), exist_ok=True)
+    df = pd.DataFrame({'encoder': [timings[:,0].mean(), timings[:,0].std()],
+                       'decoder': [timings[:,1].mean(), timings[:,1].std()]},
+                      index=['mean','std'])
+    df.to_csv(script_output)
     
-print('Mean times:', timings[:,0].mean(), timings[:,1].mean())
-print('Std:', timings[:,0].std(), timings[:,1].std())
+else:
+    print('Mean times:', timings[:,0].mean(), timings[:,1].mean())
+    print('Std:', timings[:,0].std(), timings[:,1].std())
 

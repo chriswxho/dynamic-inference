@@ -7,9 +7,9 @@ spec:
     spec:
       containers:
       - name: chris-dpt
-        image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference:latest
+        image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
         command:
-        - "python"
+        - "python3"
         args:
         - "/opt/repo/dynamic-inference/dpt_benchmark.py"
         volumeMounts:
@@ -63,5 +63,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - 1080Ti
+                  - 2080Ti
   backoffLimit: 0
