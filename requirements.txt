@@ -1,4 +1,10 @@
+# dpt
 torch==1.8.1
 torchvision==0.9.1
 opencv-python==4.5.2.54
 timm==0.4.5
+# video_inference_common
+requests
+matplotlib
+# other
+pandas

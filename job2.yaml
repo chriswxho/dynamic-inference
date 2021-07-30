@@ -1,12 +1,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train
+  name: dpt-train2
 spec:
   template:
     spec:
       containers:
-      - name: chris-dpt
+      - name: chris-dpt2
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
         # command:
         # - 'sleep'
@@ -77,5 +77,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - V100
+                  - A40
   backoffLimit: 0

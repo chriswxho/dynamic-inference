@@ -1,0 +1,3 @@
+[submodule "video_inference_common"]
+    path = video_inference_common
+    url = ssh://git@github.com/daeyun/video_inference_common.git

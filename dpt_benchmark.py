@@ -40,7 +40,7 @@ if k8s:
     model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
     script_output = os.path.join(k8s_pvc, 'dpt-timings', f'runtimes-{device_name}.csv')
 
-model_type = 'dpt_hybrid'
+model_type = 'dpt_hybrid_nyu'
 optimize = True
 
 runs = 500
