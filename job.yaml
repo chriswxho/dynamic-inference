@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train
+  name: dpt-train-v100
 spec:
   template:
     spec:
@@ -27,7 +27,7 @@ spec:
             cpu: "6"
             nvidia.com/gpu: "1"
           requests:
-            memory: 16Gi
+            memory: 8Gi
             cpu: "1"
             nvidia.com/gpu: "1"    
       initContainers:

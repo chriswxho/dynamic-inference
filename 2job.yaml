@@ -1,12 +1,13 @@
+# contains A40 gpu
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train2
+  name: dpt-train-a40
 spec:
   template:
     spec:
       containers:
-      - name: chris-dpt2
+      - name: chris-dpt-2
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
         # command:
         # - 'sleep'
@@ -27,7 +28,7 @@ spec:
             cpu: "6"
             nvidia.com/gpu: "1"
           requests:
-            memory: 16Gi
+            memory: 8Gi
             cpu: "1"
             nvidia.com/gpu: "1"    
       initContainers:
