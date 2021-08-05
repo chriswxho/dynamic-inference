@@ -5,6 +5,7 @@ import glob
 import torch
 import cv2
 import argparse
+import matplotlib.pyplot as plt
 
 import util.io
 
@@ -14,8 +15,16 @@ from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
+from data.metrics import get_metrics
 #from util.misc import visualize_attention
 
+from video_inference_common.video_inference.datasets import interiornet
+
+from math import log10, floor
+def round_sig(x, sig=2):
+    if x == 0:
+        return 0
+    return round(x, sig-int(floor(log10(abs(x))))-1)
 
 def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=True):
     """Run MonoDepthNN to compute depth maps.
@@ -73,6 +82,24 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
             path=model_path,
             scale=0.000305,
             shift=0.1378,
+#             scale=0.4364,
+#             shift=0.4115,
+            invert=True,
+            backbone="vitb_rn50_384",
+            non_negative=True,
+            enable_attention_hooks=False,
+        )
+        
+        normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        
+    elif model_type == 'dpt_hybrid_interiornet':
+        net_w = 640
+        net_h = 480
+        
+        model = DPTDepthModel(
+            path=model_path,
+            scale=0.4364,
+            shift=0.4115,
             invert=True,
             backbone="vitb_rn50_384",
             non_negative=True,
@@ -80,6 +107,7 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
         )
 
         normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        
     elif model_type == "midas_v21":  # Convolutional model
         net_w = net_h = 384
 
@@ -127,8 +155,13 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
     for ind, img_name in enumerate(img_names):
         if os.path.isdir(img_name):
             continue
-
-        print("  processing {} ({}/{})".format(img_name, ind + 1, num_images))
+        
+        names = os.path.basename(img_name).split('_')
+        depth = '_'.join(names)[:-2]
+        frame_index = int(names[-2])
+        gt = 1 / interiornet.read_depth(depth, frame_index)
+        
+        print("  processing {} ({}/{})".format(img_name, ind + 1, num_images),0)
         # input
 
         img = util.io.read_image(img_name)
@@ -166,12 +199,18 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
                 prediction *= 256
 
             if model_type == "dpt_hybrid_nyu":
-                prediction *= 1000.0
-
+                pass
+#                 prediction *= 1000.0
+                
+        metrics = get_metrics(torch.from_numpy(prediction), torch.from_numpy(gt))
+        print(metrics)
         filename = os.path.join(
-            output_path, os.path.splitext(os.path.basename(img_name))[0]
+            output_path, 
+            os.path.splitext(os.path.basename(img_name))[0]+'-'+'_'.join([str(round_sig(x, 4)) for x in metrics])
         )
+        
         util.io.write_depth(filename, prediction, bits=2, absolute_depth=args.absolute_depth)
+        
 
     print("finished")
 
@@ -219,6 +258,7 @@ if __name__ == "__main__":
         "dpt_hybrid": "weights/dpt_hybrid-midas-501f0c75.pt",
         "dpt_hybrid_kitti": "weights/dpt_hybrid_kitti-cb926ef4.pt",
         "dpt_hybrid_nyu": "weights/dpt_hybrid_nyu-2ce69ec7.pt",
+        "dpt_hybrid_interiornet": "train-logs/finetune.pt"
     }
 
     if args.model_weights is None:

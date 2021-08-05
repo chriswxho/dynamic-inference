@@ -19,7 +19,8 @@ from torchvision.transforms import Compose
 from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
-from dataset.InteriorNetDataset import InteriorNetDataset
+from data.InteriorNetDataset import InteriorNetDataset
+from data.metrics import SILog, get_metrics
 
 import util.io
 
@@ -31,13 +32,15 @@ np.random.seed(0)
 # k8s paths
 k8s = True
 k8s_repo = r'opt/repo/dynamic-inference'
-k8s_pvc = r'../../christh9-pvc'
+k8s_pvc = r'christh9-pvc'
 
 # path settings
 input_path = 'input'
 output_path = 'output_monodepth'
 model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
 dataset_path = 'video_inference_common/resources'
+
+print(os.getcwd())
 
 if k8s:
     input_path = os.path.join(k8s_repo, input_path)
@@ -138,52 +141,13 @@ print('Loaded model')
 #     model = model.to(memory_format=torch.channels_last)
 #     model = model.half()
 
-def SILogLoss(yhat, y, L = 1):
-    '''
-    yhat: prediction
-    y: ground truth
-    L: λ in the paper, [0,1]. L=0 gives elementwise L2 loss, 
-       L=1 gives scale-invariant loss.
-    https://arxiv.org/pdf/1406.2283.pdf
-    '''
-    idx = ~torch.isnan(y)
-    di = torch.log(yhat[idx] + 1) - torch.log(y[idx] + 1)
-    
-    return (di**2).mean() - L * di.mean() ** 2
-
-
-# In[6]:
-
-
-def get_metrics(yhat, y, metrics=['absrel', 'delta', 'mae']):
-    
-    values = []
-    idx = ~torch.isnan(y)
-    pred = yhat[idx]
-    gt = y[idx]
-    
-    if 'absrel' in metrics:
-        values.append((torch.abs(gt - pred) / gt).mean().item())
-    if 'delta' in metrics:
-        # assume that no values in the ground truth map are zero,
-        #  and that infinite/unmapped distances are NaNs
-        idx_nonzero = torch.where(torch.where(yhat != 0, 1, 0) * idx)
-        delta = torch.max(yhat[idx_nonzero] / y[idx_nonzero], 
-                           y[idx_nonzero] / yhat[idx_nonzero])
-        values.append(torch.where(delta < 1.25, 1., 0.).mean().item() * 100)
-    if 'mae' in metrics:
-        values.append((torch.abs(gt - pred)).mean().item())
-        
-    return np.array(values)
-
-
 model.load_state_dict(torch.load(model_path))
 print('Loaded model weights')
 
 
 print('Training')
 
-num_steps = 10
+num_steps = 50
 losses = []
 metrics = []
 lr = 1e-5
@@ -206,7 +170,7 @@ for step in range(num_steps):
         if torch.any(torch.isnan(yhat)):
             print('ERROR: NaNs in model output')
             
-        loss = SILogLoss(yhat, 1/y)
+        loss = SILog(yhat, 1/y)
         loss.backward()
         
         optimizer.step()
