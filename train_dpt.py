@@ -15,6 +15,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
+import pytorch_lightning as pl
 
 from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
@@ -32,15 +33,13 @@ np.random.seed(0)
 # k8s paths
 k8s = True
 k8s_repo = r'opt/repo/dynamic-inference'
-k8s_pvc = r'christh9-pvc'
+k8s_pvc = r'../../christh9-pvc'
 
 # path settings
 input_path = 'input'
 output_path = 'output_monodepth'
 model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
 dataset_path = 'video_inference_common/resources'
-
-print(os.getcwd())
 
 if k8s:
     input_path = os.path.join(k8s_repo, input_path)
@@ -81,7 +80,7 @@ interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subs
 dataloader = DataLoader(interiornet_dataset, 
                         batch_size=batch_size, 
                         shuffle=True, 
-                        num_workers=0)
+                        num_workers=4)
 
 
 print(f'Created datasets in {round(time.time()-start,3)}s')
@@ -116,24 +115,13 @@ else:
 # s: 0.4363926351070404, t: 0.4114949703216553
 
 # select device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("device: %s" % device)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# print("device: %s" % device)
 
-model = DPTDepthModel(
-    path=model_path,
-    scale=s,
-    shift=t,
-#     scale=0.000305,
-#     shift=0.1378,
-    invert=True,
-    backbone="vitb_rn50_384",
-    non_negative=True,
-    enable_attention_hooks=False,
-)
 
-model.to(device)
+# model.to(device)
 
-print('Loaded model')
+# print('Loaded model')
 
 # figure out how to implement this in training, don't use this for now
 
@@ -141,75 +129,115 @@ print('Loaded model')
 #     model = model.to(memory_format=torch.channels_last)
 #     model = model.half()
 
-model.load_state_dict(torch.load(model_path))
-print('Loaded model weights')
+# model.load_state_dict(torch.load(model_path))
+# print('Loaded model weights')
 
 
 print('Training')
 
-num_steps = 50
-losses = []
-metrics = []
-lr = 1e-5
-
-optimizer = optim.Adam(model.parameters(), lr)
-
-
-for step in range(num_steps):
+class InteriorNetDPT(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.model = DPTDepthModel(
+                        path=model_path,
+                        scale=s,
+                        shift=t,
+                        #     scale=0.000305,
+                        #     shift=0.1378,
+                        invert=True,
+                        backbone="vitb_rn50_384",
+                        non_negative=True,
+                        enable_attention_hooks=False,
+                     )
     
-    start = time.time()
-    running_loss = 0.0
-    num_samples = 0
-    running_metrics = []
+    def forward(self):
+        return self.model(x)
     
-    print(f'Step {step+1}')
-    for sample in dataloader:
-        x, y = sample['image'].to(device), sample['depth'].to(device)
-        yhat = model(x)
+    def training_step(self, batch, batch_idx):
+        x, y = sample['image'], sample['depth']
+        yhat = self.model(x)
+        loss = SILogLoss(yhat, 1/y)
+        self.log('train_loss', loss, on_epoch=True)
         
-        if torch.any(torch.isnan(yhat)):
-            print('ERROR: NaNs in model output')
+        metrics = get_metrics(yhat.detach(), 1/y.detach())
+        self.log('absrel', metrics[0], on_epoch=True)
+        self.log('delta_acc', metrics[1], on_epoch=True)
+        self.log('mae', metrics[2], on_epoch=True)
+        return loss
+    
+    def configure_optimizers(self):
+        return optim.Adam(self.parameters(), lr=1e-5)
+
+num_epochs = 50
+model = InteriorNetDPT()
+
+if torch.cuda.is_available():
+    trainer = pl.Trainer(gpus=torch.cuda.device_count(), max_epochs=num_epochs)
+else:
+    trainer = pl.Trainer(max_epochs=1)
+    
+trainer.fit(model, dataloader)
+
+# num_steps = 50
+# losses = []
+# metrics = []
+# lr = 1e-5
+
+# optimizer = optim.Adam(model.parameters(), lr)
+
+
+# for step in range(num_steps):
+    
+#     start = time.time()
+#     running_loss = 0.0
+#     num_samples = 0
+#     running_metrics = []
+    
+#     print(f'Step {step+1}')
+#     for sample in dataloader:
+#         x, y = sample['image'].to(device), sample['depth'].to(device)
+#         yhat = model(x)
             
-        loss = SILog(yhat, 1/y)
-        loss.backward()
+#         loss = SILog(yhat, 1/y)
+#         loss.backward()
         
-        optimizer.step()
-        optimizer.zero_grad(set_to_none=True)
+#         optimizer.step()
+#         optimizer.zero_grad(set_to_none=True)
         
-        running_metrics.append(get_metrics(yhat.detach(), 1/y.detach()))
+#         running_metrics.append(get_metrics(yhat.detach(), 1/y.detach()))
         
-        num_samples += x.detach().size(0)
-        running_loss += loss.detach().item() * x.detach().size(0)
+#         num_samples += x.detach().size(0)
+#         running_loss += loss.detach().item() * x.detach().size(0)
     
-    losses.append(running_loss / num_samples if num_samples > 0 else 0)
+#     losses.append(running_loss / num_samples if num_samples > 0 else 0)
     
-    running_metrics = np.array(running_metrics)
+#     running_metrics = np.array(running_metrics)
 
-    metrics.append(running_metrics.mean(axis=0))
+#     metrics.append(running_metrics.mean(axis=0))
     
-    print(f'SILogLoss: {losses[-1]}')
-    print(f'AbsRel: {metrics[-1][0]}\tDelta acc%: {metrics[-1][1]}\tMAE: {metrics[-1][2]}')
-    print(f'Step time: {str(datetime.timedelta(seconds=round(time.time() - start)))}')
+#     print(f'SILogLoss: {losses[-1]}')
+#     print(f'AbsRel: {metrics[-1][0]}\tDelta acc%: {metrics[-1][1]}\tMAE: {metrics[-1][2]}')
+#     print(f'Step time: {str(datetime.timedelta(seconds=round(time.time() - start)))}')
 
 
-# data saving
+# # data saving
 
-losses = np.array(losses)
-metrics = np.array(metrics)
+# losses = np.array(losses)
+# metrics = np.array(metrics)
 
-logs_dir = os.path.join(k8s_pvc, 'train-logs')
+# logs_dir = os.path.join(k8s_pvc, 'train-logs')
 
-if not os.path.exists(logs_dir):
-    os.mkdir(logs_dir)
+# if not os.path.exists(logs_dir):
+#     os.mkdir(logs_dir)
     
-df = pd.DataFrame({
-                   'loss': losses, 
-                   'absrel': metrics[:,0],
-                   'delta': metrics[:,1],
-                   'mae': metrics[:,2]
-                  })
+# df = pd.DataFrame({
+#                    'loss': losses, 
+#                    'absrel': metrics[:,0],
+#                    'delta': metrics[:,1],
+#                    'mae': metrics[:,2]
+#                   })
 
-df.to_csv(os.path.join(logs_dir, 'testrun.csv'))
+# df.to_csv(os.path.join(logs_dir, 'testrun.csv'))
 
 torch.save(model.state_dict(), os.path.join(logs_dir, 'finetune.pt'))
 

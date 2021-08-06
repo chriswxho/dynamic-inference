@@ -10,3 +10,4 @@ requests
 matplotlib
 # other
 pandas
+pytorch-lightning

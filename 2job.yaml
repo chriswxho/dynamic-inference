@@ -25,12 +25,12 @@ spec:
         resources:
           limits:
             memory: 48Gi
-            cpu: "6"
-            nvidia.com/gpu: "1"
+            cpu: "1"
+            nvidia.com/gpu: "4"
           requests:
             memory: 8Gi
             cpu: "1"
-            nvidia.com/gpu: "1"    
+            nvidia.com/gpu: "4"    
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
@@ -78,5 +78,9 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - A40
+                  - '3090'
+                - key: topology.kubernetes.io/region
+                  operator: In
+                  values:
+                  - us-west
   backoffLimit: 0
