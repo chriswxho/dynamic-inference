@@ -80,7 +80,7 @@ interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subs
 dataloader = DataLoader(interiornet_dataset, 
                         batch_size=batch_size, 
                         shuffle=True, 
-                        num_workers=4)
+                        num_workers=1)
 
 
 print(f'Created datasets in {round(time.time()-start,3)}s')

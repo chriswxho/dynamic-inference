@@ -26,11 +26,11 @@ spec:
           limits:
             memory: 48Gi
             cpu: "1"
-            nvidia.com/gpu: "4"
+            nvidia.com/gpu: "1"
           requests:
-            memory: 8Gi
+            memory: 16Gi
             cpu: "1"
-            nvidia.com/gpu: "4"    
+            nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
