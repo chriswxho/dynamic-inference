@@ -151,15 +151,16 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
     # create output folder
     os.makedirs(output_path, exist_ok=True)
 
+    print(f'evaluating: {model_type}')
     print("start processing")
     for ind, img_name in enumerate(img_names):
         if os.path.isdir(img_name):
             continue
         
-        names = os.path.basename(img_name).split('_')
-        depth = '_'.join(names)[:-2]
-        frame_index = int(names[-2])
-        gt = 1 / interiornet.read_depth(depth, frame_index)
+#         names = os.path.basename(img_name).split('_')
+#         depth = '_'.join(names)[:-2]
+#         frame_index = int(names[-2])
+#         gt = 1 / interiornet.read_depth(depth, frame_index)
         
         print("  processing {} ({}/{})".format(img_name, ind + 1, num_images),0)
         # input
@@ -199,14 +200,17 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
                 prediction *= 256
 
             if model_type == "dpt_hybrid_nyu":
-                pass
-#                 prediction *= 1000.0
+#                 pass
+                prediction *= 1000.0
                 
-        metrics = get_metrics(torch.from_numpy(prediction), torch.from_numpy(gt))
-        print(metrics)
+#         metrics = get_metrics(torch.from_numpy(prediction), torch.from_numpy(gt))
+        print('stats')
+        print(prediction.min(), prediction.max())
+        print(prediction[450,20])
+        
         filename = os.path.join(
-            output_path, 
-            os.path.splitext(os.path.basename(img_name))[0]+'-'+'_'.join([str(round_sig(x, 4)) for x in metrics])
+            output_path,
+            os.path.splitext(os.path.basename(img_name))[0]#+'-'+'_'.join([str(round_sig(x, 4)) for x in metrics])
         )
         
         util.io.write_depth(filename, prediction, bits=2, absolute_depth=args.absolute_depth)

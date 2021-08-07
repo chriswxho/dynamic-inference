@@ -1,36 +1,38 @@
-# contains A40 gpu
+# multiple-gpu train
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train-a40
+  name: dpt-train-2
 spec:
   template:
     spec:
       containers:
       - name: chris-dpt-2
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        # command:
-        # - 'sleep'
-        # args:
-        # - '365000000'
         command:
-        - "python3"
+        - 'sleep'
         args:
-        - "/opt/repo/dynamic-inference/train_dpt.py"
+        - '365000000'
+        # command:
+        # - "python3"
+        # args:
+        # - "/opt/repo/dynamic-inference/train_dpt.py"
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
         - name: christh9-pvc
           mountPath: /christh9-pvc
+        - name: dshm
+          mountPath: /dev/shm
         resources:
           limits:
-            memory: 48Gi
-            cpu: "1"
-            nvidia.com/gpu: "1"
+            memory: 128Gi
+            cpu: "16"
+            nvidia.com/gpu: "4"
           requests:
-            memory: 16Gi
-            cpu: "1"
-            nvidia.com/gpu: "1"    
+            memory: 64Gi
+            cpu: "8"
+            nvidia.com/gpu: "4"    
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
@@ -69,6 +71,9 @@ spec:
       - name: christh9-pvc
         persistentVolumeClaim:
           claimName: christh9-pvc
+      - name: dshm
+        emptyDir:
+          medium: Memory
       restartPolicy: Never
       affinity:
         nodeAffinity:

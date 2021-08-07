@@ -17,7 +17,6 @@ def get_activation(name):
 
 attention = {}
 
-
 def get_attention(name):
     def hook(module, input, output):
         x = input[0]

@@ -1,7 +1,8 @@
+# for single gpu training
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train-v100
+  name: dpt-train
 spec:
   template:
     spec:
@@ -11,7 +12,7 @@ spec:
         # command:
         # - 'sleep'
         # args:
-        # - '365000000'
+        # - '3650000000'
         command:
         - "python3"
         args:
@@ -21,14 +22,16 @@ spec:
           mountPath: /opt/repo
         - name: christh9-pvc
           mountPath: /christh9-pvc
+        - name: dshm
+          mountPath: /dev/shm
         resources:
           limits:
-            memory: 48Gi
+            memory: 32Gi
             cpu: "6"
             nvidia.com/gpu: "1"
           requests:
-            memory: 8Gi
-            cpu: "1"
+            memory: 32Gi
+            cpu: "2"
             nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
@@ -68,6 +71,9 @@ spec:
       - name: christh9-pvc
         persistentVolumeClaim:
           claimName: christh9-pvc
+      - name: dshm
+        emptyDir:
+          medium: Memory
       restartPolicy: Never
       affinity:
         nodeAffinity:
@@ -77,5 +83,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - V100
+                  - 'V100'
   backoffLimit: 0
