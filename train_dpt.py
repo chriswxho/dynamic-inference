@@ -172,8 +172,8 @@ num_epochs = 20
 
 model = InteriorNetDPT()
 
-idx = len(os.listdir(logs_dir))
-logger = CSVLogger(os.path.join(logs_dir, 'finetune-log'), name=f'dpt-nyu-finetune{idx}')
+exp_idx = len(os.listdir(os.path.join(logs_dir, 'finetune-log')))
+logger = CSVLogger(os.path.join(logs_dir, 'finetune-log'), name=f'dpt-nyu-finetune{exp_idx}')
 
 model.model.pretrained.model.patch_embed.requires_grad = False
 
@@ -258,6 +258,6 @@ trainer.fit(model, dataloader)
 # eval this video:
 # 3FO4IW2QC9U7_original_1_1
 
-torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{idx}.pt'))
+torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
 
 logger.experiment.save()
