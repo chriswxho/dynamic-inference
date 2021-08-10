@@ -83,5 +83,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - 'V100'
+                  - 'A40'
   backoffLimit: 0

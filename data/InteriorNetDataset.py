@@ -13,7 +13,7 @@ def getlines(files: [str], subsample):
     if not subsample:
         for f in files:
             names.append(map(lambda x: x.strip(), open(f).readlines()))
-        return list(itertools.chain.from_iterable(names))
+        return [list(itertools.chain.from_iterable(names))][:20]
 
     else:
         for f in files:
@@ -39,7 +39,7 @@ class InteriorNetDataset(Dataset):
         self.path = dataset_path
         
     def __len__(self):
-        return 1000 * len(self.videos) # each video is 1000 frames
+        return 10 * len(self.videos) # each video is 1000 frames
     
     def __getitem__(self, idx):
         

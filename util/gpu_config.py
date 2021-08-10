@@ -3,12 +3,13 @@ import torch
 def get_batch_size():
     name = torch.cuda.get_device_name(0)
     
-    if name == 'GeForce RTX 2080 Ti':
+    if '2080' in name:
         return 1
-    elif name == 'GeForce RTX 3090':
+    elif '3090' in name:
         return 2
-    elif name == 'Tesla V100-SXM2-32GB':
-        return 4
-    # a40 stats
+    elif 'V100' in name:
+        return 4 #?
+    elif 'A40' in name:
+        return 16
     else:
         return 1

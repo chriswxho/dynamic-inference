@@ -25,34 +25,34 @@ spec:
         cpu: "1"
         nvidia.com/gpu: "1"
 
-  # initContainers:
-  # - name: init-clone-repo
-  #   image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
-  #   env:
-  #   - name: GIT_USERNAME
-  #     valueFrom:
-  #       secretKeyRef:
-  #         name: gitlab-secret
-  #         key: user    
-  #   - name: GIT_PASSWORD
-  #     valueFrom:
-  #       secretKeyRef:
-  #         name: gitlab-secret
-  #         key: password    
-  #   command:
-  #     - git
-  #   args:
-  #     - clone
-  #     - --single-branch
-  #     - --recurse-submodules
-  #     - --remote-submodules
-  #     - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
-  #     - /opt/repo/dynamic-inference
-  #   volumeMounts:
-  #     - name: git-repo
-  #       mountPath: /opt/repo
-  #     - name: ssh-key
-  #       mountPath: /secrets
+  initContainers:
+  - name: init-clone-repo
+    image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
+    env:
+    - name: GIT_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: gitlab-secret
+          key: user    
+    - name: GIT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: gitlab-secret
+          key: password    
+    command:
+      - git
+    args:
+      - clone
+      - --single-branch
+      - --recurse-submodules
+      - --remote-submodules
+      - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
+      - /opt/repo/dynamic-inference
+    volumeMounts:
+      - name: git-repo
+        mountPath: /opt/repo
+      - name: ssh-key
+        mountPath: /secrets
   volumes:
   - name: ssh-key
     secret:
@@ -75,4 +75,4 @@ spec:
             - key: gpu-type
               operator: In
               values:
-              - '3090'
+              - '2080Ti'

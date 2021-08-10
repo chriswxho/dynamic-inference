@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 
 from dpt.models import DPTDepthModel
 from dpt.midas_net import MidasNet_large
@@ -166,14 +166,14 @@ class InteriorNetDPT(pl.LightningModule):
     
     def configure_optimizers(self):
         return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
-                          lr=1e-5)
+                          lr=1e-6)
 
-num_epochs = 20
+num_epochs = 10
 
 model = InteriorNetDPT()
 
 exp_idx = len(os.listdir(os.path.join(logs_dir, 'finetune-log')))
-logger = CSVLogger(os.path.join(logs_dir, 'finetune-log'), name=f'dpt-nyu-finetune{exp_idx}')
+logger = TensorBoardLogger(os.path.join(logs_dir, 'finetune-log'), name=f'dpt-nyu-finetune{exp_idx}')
 
 model.model.pretrained.model.patch_embed.requires_grad = False
 
@@ -260,4 +260,4 @@ trainer.fit(model, dataloader)
 
 torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
 
-logger.experiment.save()
+logger.save()
