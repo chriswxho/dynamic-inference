@@ -20,13 +20,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from dpt.models import DPTDepthModel
-from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
 from data.metrics import SILog, get_metrics
 from util.gpu_config import get_batch_size
-
-import util.io
 
 # In[2]:
 
@@ -51,6 +48,7 @@ if k8s:
     model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
     dataset_path = os.path.join(k8s_repo, dataset_path)
     logs_dir = os.path.join(k8s_pvc, logs_path)
+    os.chdir('/')
 
 
 net_w = 640
@@ -79,13 +77,13 @@ transform = Compose(
 start = time.time()
     
 batch_size = get_batch_size()
-lr = 1e-6
-num_epochs = 25
+lr = 1e-5
+num_epochs = 100
 
 print('-- Hyperparams --')
-print(f'\tBatchsize: {batch_size}')
-print(f'\tLearning rate: {lr}')
-print(f'\tEpochs: {num_epochs}')
+print(f'Batchsize: {batch_size}')
+print(f'Learning rate: {lr}')
+print(f'Epochs: {num_epochs}')
 print('-----------------')
 
 # get shifted statistics
@@ -106,16 +104,23 @@ if get_new:
     t = np.median(d[idx])
     s = (d[idx] - t).mean()
 
-    print(f'Retrieved statistics in {round(time.time()-start,3)}s')
+    print(f'Retrieved statistics in {timedelta(seconds=round(time.time()-start,2))}s')
     print(f's: {s}, t: {t}')
 
 else:
     s, t = 0.4364, 0.4115
 
-# s: 0.22012925148010254, t: 2.445845127105713, s: 0.20440419018268585, t: 2.446396827697754
+# depth stats:
+# s: 0.22012925148010254, t: 2.445845127105713, 
+# s: 0.20440419018268585, t: 2.446396827697754
 
-# inverse stats:
+# disparity stats:
 # s: 0.4363926351070404, t: 0.4114949703216553
+
+# original nyu stats:
+# s: 0.000305, t: 0.1378
+
+start = time.time()
 
 class InteriorNetDPT(pl.LightningModule):
     def __init__(self, batch_size, lr, num_epochs):
@@ -124,8 +129,6 @@ class InteriorNetDPT(pl.LightningModule):
                         path=model_path,
                         scale=s,
                         shift=t,
-                        #     scale=0.000305,
-                        #     shift=0.1378,
                         invert=True,
                         backbone="vitb_rn50_384",
                         non_negative=True,
@@ -134,9 +137,7 @@ class InteriorNetDPT(pl.LightningModule):
         
         self.model.pretrained.model.patch_embed.requires_grad = False
         self.save_hyperparameters()
-        
-#         self.example_input_array = torch.ones((batch_size, net_h, net_w, 3))
-    
+            
     def forward(self, x):
         return self.model(x)
     
@@ -171,27 +172,27 @@ exp_idx = len(os.listdir(os.path.join(logs_dir)))
 logger = TensorBoardLogger(logs_dir, name='finetune')
 
 # dataloader setup
-interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subsample=True)
+interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform)
 dataloader = DataLoader(interiornet_dataset, 
                         batch_size=model.hparams.batch_size, 
                         shuffle=True, 
                         num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
 
-print(f'Created datasets in {timedelta(seconds=round(time.time()-start,3))}')
+print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
 
 if torch.cuda.is_available():
     if torch.cuda.device_count() > 1:
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
                              accelerator='ddp',
-                             logger=logger,
-                             progress_bar_refresh_rate=0)
+                             logger=logger) #,
+#                              progress_bar_refresh_rate=0)
     else:
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
-                             logger=logger,
-                             progress_bar_refresh_rate=0)
+                             logger=logger)#,
+#                              progress_bar_refresh_rate=0)
 else:
     trainer = pl.Trainer(max_epochs=1, logger=logger)
     
@@ -200,7 +201,7 @@ print('Training')
 start = time.time()
 trainer.fit(model, dataloader)
 
-print(f'Training completed in {timedelta(seconds=time.time()-start)}')
+print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
 
 # eval this video:
 # 3FO4IW2QC9U7_original_1_1

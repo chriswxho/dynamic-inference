@@ -1,22 +1,15 @@
-# for single gpu training
+# for short ipynb sessions with good gpus
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train
+  name: dpt-playground
 spec:
   template:
     spec:
       containers:
       - name: chris-dpt
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        # command:
-        # - 'sleep'
-        # args:
-        # - '3650000000'
-        command:
-        - "python3"
-        args:
-        - "/opt/repo/dynamic-inference/train_dpt.py"
+        command: ['sleep', '3650000000']
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -26,12 +19,12 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 24Gi
+            memory: 32Gi
             cpu: "6"
             nvidia.com/gpu: "1"
           requests:
             memory: 16Gi
-            cpu: "1"
+            cpu: "2"
             nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo

@@ -26,12 +26,12 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 64Gi
-            cpu: "16"
+            memory: 24Gi
+            cpu: "4"
             nvidia.com/gpu: "4"
           requests:
-            memory: 32Gi
-            cpu: "8"
+            memory: 16Gi
+            cpu: "1"
             nvidia.com/gpu: "4"    
       initContainers:
       - name: init-clone-repo

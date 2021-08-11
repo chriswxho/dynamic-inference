@@ -9,16 +9,14 @@ from video_inference_common.video_inference.datasets import interiornet
 def getlines(files: [str], subsample):
     ''' helper function to get stripped lines from multiple files'''
     names = []
-    # todo: delete after verification
-    if not subsample:
-        for f in files:
-            names.append(map(lambda x: x.strip(), open(f).readlines()))
-        return list(itertools.chain.from_iterable(names))
-
-    else:
+    if subsample:
         for f in files:
             names.append(open(f).readline().strip())
             break
+    else:
+        for f in files:
+            names.append(map(lambda x: x.strip(), open(f).readlines()))
+        return list(itertools.chain.from_iterable(names))
             
         return names
     
@@ -37,18 +35,23 @@ class InteriorNetDataset(Dataset):
         self.videos = np.array(getlines(video_names, subsample))
         self.transform = transform
         self.path = dataset_path
+        self.subsample = subsample
         
     def __len__(self):
-        return 20 * len(self.videos) # each video is 1000 frames
+        # each video is 1000 frames
+        return 20 * len(self.videos) if self.subsample else 1000 * len(self.videos) 
     
     def __getitem__(self, idx):
         
         # idx will come as video_index * frame_index
-#         img_name = self.videos[idx // 1000]
-#         frame_idx = idx % 1000
+        if self.subsample:
+            img_name = self.videos[0]
+            frame_idx = idx
+        else:
+            img_name = self.videos[idx // 1000]
+            frame_idx = idx % 1000
         
-        img_name = self.videos[0]
-        frame_idx = idx
+
         
         im = interiornet.read_rgb(img_name, frame_idx)
         depth = interiornet.read_depth(img_name, frame_idx)
