@@ -26,11 +26,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 128Gi
+            memory: 64Gi
             cpu: "16"
             nvidia.com/gpu: "4"
           requests:
-            memory: 64Gi
+            memory: 32Gi
             cpu: "8"
             nvidia.com/gpu: "4"    
       initContainers:
@@ -83,7 +83,7 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - '3090'
+                  - '2080Ti'
                 - key: topology.kubernetes.io/region
                   operator: In
                   values:

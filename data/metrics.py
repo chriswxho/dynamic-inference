@@ -10,7 +10,7 @@ def SILog(yhat, y, L = 1):
     https://arxiv.org/pdf/1406.2283.pdf
     '''
     idx = ~torch.isnan(y)
-    di = torch.log(yhat[idx] + 1) - torch.log(y[idx] + 1)
+    di = torch.log(yhat[idx] + 1e-10) - torch.log(y[idx])
     
     return (di**2).mean() - L * di.mean() ** 2
 

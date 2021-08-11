@@ -13,7 +13,7 @@ def getlines(files: [str], subsample):
     if not subsample:
         for f in files:
             names.append(map(lambda x: x.strip(), open(f).readlines()))
-        return [list(itertools.chain.from_iterable(names))][:20]
+        return list(itertools.chain.from_iterable(names))
 
     else:
         for f in files:
@@ -39,13 +39,16 @@ class InteriorNetDataset(Dataset):
         self.path = dataset_path
         
     def __len__(self):
-        return 10 * len(self.videos) # each video is 1000 frames
+        return 20 * len(self.videos) # each video is 1000 frames
     
     def __getitem__(self, idx):
         
         # idx will come as video_index * frame_index
-        img_name = self.videos[idx // 1000]
-        frame_idx = idx % 1000
+#         img_name = self.videos[idx // 1000]
+#         frame_idx = idx % 1000
+        
+        img_name = self.videos[0]
+        frame_idx = idx
         
         im = interiornet.read_rgb(img_name, frame_idx)
         depth = interiornet.read_depth(img_name, frame_idx)

@@ -6,7 +6,7 @@
 import os
 import glob
 import time
-import datetime
+from datetime import timedelta
 import cv2
 import numpy as np
 import pandas as pd
@@ -79,16 +79,14 @@ transform = Compose(
 start = time.time()
     
 batch_size = get_batch_size()
-print(f'Batchsize: {batch_size}')
+lr = 1e-6
+num_epochs = 25
 
-interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subsample=True)
-dataloader = DataLoader(interiornet_dataset, 
-                        batch_size=batch_size, 
-                        shuffle=True, 
-                        num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
-
-
-print(f'Created datasets in {round(time.time()-start,3)}s')
+print('-- Hyperparams --')
+print(f'\tBatchsize: {batch_size}')
+print(f'\tLearning rate: {lr}')
+print(f'\tEpochs: {num_epochs}')
+print('-----------------')
 
 # get shifted statistics
 
@@ -119,23 +117,8 @@ else:
 # inverse stats:
 # s: 0.4363926351070404, t: 0.4114949703216553
 
-# select device
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# print("device: %s" % device)
-
-
-# model.to(device)
-
-# print('Loaded model')
-
-# figure out how to implement this in training, don't use this for now
-
-# if optimize == True and device == torch.device("cuda"):
-#     model = model.to(memory_format=torch.channels_last)
-#     model = model.half()
-
 class InteriorNetDPT(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, batch_size, lr, num_epochs):
         super().__init__()
         self.model = DPTDepthModel(
                         path=model_path,
@@ -148,17 +131,22 @@ class InteriorNetDPT(pl.LightningModule):
                         non_negative=True,
                         enable_attention_hooks=False,
                      )
+        
+        self.model.pretrained.model.patch_embed.requires_grad = False
+        self.save_hyperparameters()
+        
+#         self.example_input_array = torch.ones((batch_size, net_h, net_w, 3))
     
-    def forward(self):
+    def forward(self, x):
         return self.model(x)
     
     def training_step(self, batch, batch_idx):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
-        loss = SILog(yhat, 1/y)
+        loss = SILog(yhat, y)
         self.log('train_loss', loss, on_epoch=True)
         
-        metrics = get_metrics(yhat.detach(), 1/y.detach())
+        metrics = get_metrics(yhat.detach(), y.detach())
         self.log('absrel', metrics[0], on_epoch=True)
         self.log('delta_acc', metrics[1], on_epoch=True)
         self.log('mae', metrics[2], on_epoch=True)
@@ -166,27 +154,42 @@ class InteriorNetDPT(pl.LightningModule):
     
     def configure_optimizers(self):
         return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
-                          lr=1e-6)
+                          lr=self.hparams.lr)
+    
+    def on_train_start(self):
+        self.logger.log_hyperparams(self.hparams)
+        
+    def training_epoch_end(self, _):
+        self.logger.log_graph(torch.ones((self.hparams.batch_size, net_h, net_w, 3)))
 
-num_epochs = 10
 
-model = InteriorNetDPT()
+# model setup
+model = InteriorNetDPT(batch_size, lr, num_epochs)
 
-exp_idx = len(os.listdir(os.path.join(logs_dir, 'finetune-log')))
-logger = TensorBoardLogger(os.path.join(logs_dir, 'finetune-log'), name=f'dpt-nyu-finetune{exp_idx}')
+# logging setup
+exp_idx = len(os.listdir(os.path.join(logs_dir)))
+logger = TensorBoardLogger(logs_dir, name='finetune')
 
-model.model.pretrained.model.patch_embed.requires_grad = False
+# dataloader setup
+interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subsample=True)
+dataloader = DataLoader(interiornet_dataset, 
+                        batch_size=model.hparams.batch_size, 
+                        shuffle=True, 
+                        num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
+
+
+print(f'Created datasets in {timedelta(seconds=round(time.time()-start,3))}')
 
 if torch.cuda.is_available():
     if torch.cuda.device_count() > 1:
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                             max_epochs=num_epochs,
+                             max_epochs=model.hparams.num_epochs,
                              accelerator='ddp',
                              logger=logger,
                              progress_bar_refresh_rate=0)
     else:
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                             max_epochs=num_epochs,
+                             max_epochs=model.hparams.num_epochs,
                              logger=logger,
                              progress_bar_refresh_rate=0)
 else:
@@ -194,66 +197,10 @@ else:
     
 print('Training')
 
+start = time.time()
 trainer.fit(model, dataloader)
 
-# num_steps = 50
-# losses = []
-# metrics = []
-# lr = 1e-5
-
-# optimizer = optim.Adam(model.parameters(), lr)
-
-
-# for step in range(num_steps):
-    
-#     start = time.time()
-#     running_loss = 0.0
-#     num_samples = 0
-#     running_metrics = []
-    
-#     print(f'Step {step+1}')
-#     for sample in dataloader:
-#         x, y = sample['image'].to(device), sample['depth'].to(device)
-#         yhat = model(x)
-            
-#         loss = SILog(yhat, 1/y)
-#         loss.backward()
-        
-#         optimizer.step()
-#         optimizer.zero_grad(set_to_none=True)
-        
-#         running_metrics.append(get_metrics(yhat.detach(), 1/y.detach()))
-        
-#         num_samples += x.detach().size(0)
-#         running_loss += loss.detach().item() * x.detach().size(0)
-    
-#     losses.append(running_loss / num_samples if num_samples > 0 else 0)
-    
-#     running_metrics = np.array(running_metrics)
-
-#     metrics.append(running_metrics.mean(axis=0))
-    
-#     print(f'SILogLoss: {losses[-1]}')
-#     print(f'AbsRel: {metrics[-1][0]}\tDelta acc%: {metrics[-1][1]}\tMAE: {metrics[-1][2]}')
-#     print(f'Step time: {str(datetime.timedelta(seconds=round(time.time() - start)))}')
-
-
-# # data saving
-
-# losses = np.array(losses)
-# metrics = np.array(metrics)
-
-# if not os.path.exists(logs_dir):
-#     os.mkdir(logs_dir)
-    
-# df = pd.DataFrame({
-#                    'loss': losses, 
-#                    'absrel': metrics[:,0],
-#                    'delta': metrics[:,1],
-#                    'mae': metrics[:,2]
-#                   })
-
-# df.to_csv(os.path.join(logs_dir, 'testrun.csv'))
+print(f'Training completed in {timedelta(seconds=time.time()-start)}')
 
 # eval this video:
 # 3FO4IW2QC9U7_original_1_1
