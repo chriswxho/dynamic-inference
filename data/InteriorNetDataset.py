@@ -18,7 +18,7 @@ def getlines(files: [str], subsample):
             names.append(map(lambda x: x.strip(), open(f).readlines()))
         return list(itertools.chain.from_iterable(names))
             
-        return names
+    return names
     
 class InteriorNetDataset(Dataset):
     def __init__(self, dataset_path: str, train=True, transform=None, subsample=False):

@@ -8,6 +8,9 @@ timm==0.4.5
 # video_inference_common
 requests
 matplotlib
-# other
-pandas
+# other (deeplearning)
 pytorch-lightning
+# other (general use)
+pandas
+jupyter
+jupyterlab

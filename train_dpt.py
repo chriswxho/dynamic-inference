@@ -18,6 +18,7 @@ from torchvision.transforms import Compose
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from dpt.models import DPTDepthModel
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
@@ -135,6 +136,7 @@ class InteriorNetDPT(pl.LightningModule):
                         enable_attention_hooks=False,
                      )
         
+        self.num_epochs = num_epochs
         self.model.pretrained.model.patch_embed.requires_grad = False
         self.save_hyperparameters()
             
@@ -153,22 +155,22 @@ class InteriorNetDPT(pl.LightningModule):
         self.log('mae', metrics[2], on_epoch=True)
         return loss
     
-    def configure_optimizers(self):
-        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
-                          lr=self.hparams.lr)
-    
     def on_train_start(self):
         self.logger.log_hyperparams(self.hparams)
         
     def training_epoch_end(self, _):
         self.logger.log_graph(torch.ones((self.hparams.batch_size, net_h, net_w, 3)))
+    
+    def configure_optimizers(self):
+        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
+                          lr=self.hparams.lr)
 
 
 # model setup
 model = InteriorNetDPT(batch_size, lr, num_epochs)
 
 # logging setup
-exp_idx = len(os.listdir(os.path.join(logs_dir)))
+exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
 logger = TensorBoardLogger(logs_dir, name='finetune')
 
 # dataloader setup
@@ -178,6 +180,12 @@ dataloader = DataLoader(interiornet_dataset,
                         shuffle=True, 
                         num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
+# checkpointing
+checkpoint = ModelCheckpoint(every_n_epochs=num_epochs//10,
+                             save_on_train_epoch_end=True,
+                             save_top_k=-1,
+                             filename='dpt-finetune-{epoch}')
+
 
 print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
 
@@ -186,22 +194,33 @@ if torch.cuda.is_available():
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
                              accelerator='ddp',
-                             logger=logger) #,
+                             logger=logger,
+                             callbacks=[checkpoint]) #,
 #                              progress_bar_refresh_rate=0)
     else:
         trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
-                             logger=logger)#,
+                             logger=logger,
+                             callbacks=[checkpoint])#,
 #                              progress_bar_refresh_rate=0)
 else:
     trainer = pl.Trainer(max_epochs=1, logger=logger)
     
 print('Training')
+try:    
+    start = time.time()
+    trainer.fit(model, dataloader)
+    
+except Exception as e:
+    print('Training was halted due to the following error:')
+    print(e)
+    
+else:
+    print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
 
-start = time.time()
-trainer.fit(model, dataloader)
-
-print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
+finally:
+    print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
+    print(f'Final trained weights saved in finetune{exp_idx}.pt')
 
 # eval this video:
 # 3FO4IW2QC9U7_original_1_1
