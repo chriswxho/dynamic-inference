@@ -9,14 +9,11 @@ spec:
       containers:
       - name: chris-dpt
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        # command:
-        # - 'sleep'
-        # args:
-        # - '3650000000'
-        command:
-        - "python3"
+        command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
         args:
-        - "/opt/repo/dynamic-inference/train_dpt.py"
+        - >-
+          python3 
+          /opt/repo/dynamic-inference/train_dpt.py
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -26,12 +23,12 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 24Gi
-            cpu: "6"
+            memory: 48Gi
+            cpu: "8"
             nvidia.com/gpu: "2"
           requests:
-            memory: 16Gi
-            cpu: "2"
+            memory: 32Gi
+            cpu: "4"
             nvidia.com/gpu: "2"    
       initContainers:
       - name: init-clone-repo

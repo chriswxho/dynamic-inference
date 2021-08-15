@@ -7,7 +7,8 @@ def get_batch_size():
         return 1
     elif '3090' in name or \
         ('TITAN' in name and 'RTX' in name) or \
-        'V100' in name:
+        'V100' in name or \
+        'A100' in name:
         return 4
     elif 'A40' in name:
         return 8

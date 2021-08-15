@@ -2,22 +2,18 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dpt-train-2
+  name: dpt-train2
 spec:
   template:
     spec:
       containers:
-      - name: chris-dpt-2
+      - name: chris-dpt2
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        command:
-        - python3
+        command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
         args:
-        - /opt/repo/dynamic-inference/train_dpt.py
-        # command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
-        # args:
-        # - >-
-        #   python3 
-        #   /opt/repo/dynamic-inference/train_dpt.py
+        - >-
+          python3 
+          /opt/repo/dynamic-inference/train_dpt.py
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -28,12 +24,14 @@ spec:
         resources:
           limits:
             memory: 48Gi
-            cpu: "12"
+            cpu: "16"
             nvidia.com/gpu: "4"
           requests:
             memory: 32Gi
-            cpu: "6"
-            nvidia.com/gpu: "4"    
+            cpu: "8"
+            nvidia.com/gpu: "4"
+      nodeSelector:
+        nautilus.io/disktype: nvme
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
@@ -84,7 +82,7 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - '2080Ti'
+                  - '3090'
                 - key: topology.kubernetes.io/region
                   operator: In
                   values:

@@ -32,7 +32,7 @@ def get_attention(name):
             qkv[2],
         )  # make torchscript happy (cannot use tensor as tuple)
 
-        attn = (q @ k.transpose(-2, -1)) * module.scale
+        attn = (q @ k.transpose(-2, -1)).contiguous() * module.scale
 
         attn = attn.softmax(dim=-1)  # [:,:,1,1:]
         attention[name] = attn
@@ -95,7 +95,7 @@ class Transpose(nn.Module):
         self.dim1 = dim1
 
     def forward(self, x):
-        x = x.transpose(self.dim0, self.dim1)
+        x = x.transpose(self.dim0, self.dim1).contiguous()
         return x
 
 
@@ -174,7 +174,7 @@ def forward_flex(self, x):
         if isinstance(x, (list, tuple)):
             x = x[-1]  # last feature if backbone outputs list/tuple of features
 
-    x = self.patch_embed.proj(x).flatten(2).transpose(1, 2)
+    x = self.patch_embed.proj(x).flatten(2).transpose(1, 2).contiguous()
 
     if getattr(self, "dist_token", None) is not None:
         cls_tokens = self.cls_token.expand(

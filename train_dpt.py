@@ -26,7 +26,7 @@ from data.InteriorNetDataset import InteriorNetDataset
 from data.metrics import SILog, get_metrics
 from util.gpu_config import get_batch_size
 
-# In[2]:
+test_mode = False
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -78,7 +78,7 @@ transform = Compose(
 start = time.time()
     
 batch_size = get_batch_size()
-lr = 1e-5
+lr = 1e-4
 num_epochs = 100
 
 print('-- Hyperparams --')
@@ -139,6 +139,8 @@ class InteriorNetDPT(pl.LightningModule):
         self.num_epochs = num_epochs
         self.model.pretrained.model.patch_embed.requires_grad = False
         self.save_hyperparameters()
+        
+#         self.example_input_array = torch.ones((3, net_h, net_w)) # try this next
             
     def forward(self, x):
         return self.model(x)
@@ -147,19 +149,30 @@ class InteriorNetDPT(pl.LightningModule):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
         loss = SILog(yhat, y)
-        self.log('train_loss', loss, on_epoch=True)
+        self.log('train_loss', loss, 
+                 on_epoch=True, 
+                 sync_dist=torch.cuda.device_count() > 1)
         
         metrics = get_metrics(yhat.detach(), y.detach())
-        self.log('absrel', metrics[0], on_epoch=True)
-        self.log('delta_acc', metrics[1], on_epoch=True)
-        self.log('mae', metrics[2], on_epoch=True)
+        self.log('absrel', metrics[0],
+                 on_step=False,
+                 on_epoch=True, 
+                 sync_dist=torch.cuda.device_count() > 1)
+        self.log('delta_acc', metrics[1], 
+                 on_step=False,
+                 on_epoch=True, 
+                 sync_dist=torch.cuda.device_count() > 1)
+        self.log('mae', metrics[2], 
+                 on_step=False,
+                 on_epoch=True, 
+                 sync_dist=torch.cuda.device_count() > 1)
         return loss
     
     def on_train_start(self):
         self.logger.log_hyperparams(self.hparams)
         
-    def training_epoch_end(self, _):
-        self.logger.log_graph(torch.ones((self.hparams.batch_size, net_h, net_w, 3)))
+#     def training_epoch_end(self, _):
+#         self.logger.log_graph(self)
     
     def configure_optimizers(self):
         return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
@@ -170,14 +183,16 @@ class InteriorNetDPT(pl.LightningModule):
 model = InteriorNetDPT(batch_size, lr, num_epochs)
 
 # logging setup
-exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
-logger = TensorBoardLogger(logs_dir, name='finetune')
+logger = TensorBoardLogger(logs_dir, 
+                           name='finetune',
+                           log_graph=True)
 
 # dataloader setup
-interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform)
+interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subsample=test_mode)
 dataloader = DataLoader(interiornet_dataset, 
                         batch_size=model.hparams.batch_size, 
-                        shuffle=True, 
+                        shuffle=True,
+                        prefetch_factor=8,
                         num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
 # checkpointing
@@ -207,6 +222,7 @@ else:
     trainer = pl.Trainer(max_epochs=1, logger=logger)
     
 print('Training')
+
 try:    
     start = time.time()
     trainer.fit(model, dataloader)
@@ -220,9 +236,10 @@ else:
 
 finally:
     print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
+    exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
     print(f'Final trained weights saved in finetune{exp_idx}.pt')
 
-# eval this video:
+# eval this video if subsample=True:
 # 3FO4IW2QC9U7_original_1_1
 
 torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))

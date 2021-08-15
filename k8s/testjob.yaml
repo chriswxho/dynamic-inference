@@ -24,7 +24,7 @@ spec:
             nvidia.com/gpu: "1"
           requests:
             memory: 16Gi
-            cpu: "2"
+            cpu: "1"
             nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
