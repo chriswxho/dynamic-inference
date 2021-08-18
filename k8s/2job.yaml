@@ -9,6 +9,9 @@ spec:
       containers:
       - name: chris-dpt2
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
+        env:
+        - name: CHASE_CI
+          value: '1'
         command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
         args:
         - >-

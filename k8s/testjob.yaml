@@ -9,7 +9,17 @@ spec:
       containers:
       - name: chris-dpt
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        command: ['sleep', '3650000000']
+        env:
+        - name: CHASE_CI
+          value: '1'
+        command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
+        args:
+        - >-
+          python3 
+          /opt/repo/dynamic-inference/train_dpt.py
+          -l 1e-5
+          -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
+          -k
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
