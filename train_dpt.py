@@ -43,6 +43,9 @@ model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
 dataset_path = 'video_inference_common/resources'
 logs_path = 'train-logs'
 
+from_ckpt = True
+checkpoint_path = '/christh9-pvc/train-logs/finetune/version_5/checkpoints/dpt-finetune-epoch=9.ckpt'
+
 if k8s:
     input_path = os.path.join(k8s_repo, input_path)
     output_path = os.path.join(k8s_repo, output_path)
@@ -78,7 +81,7 @@ transform = Compose(
 start = time.time()
     
 batch_size = get_batch_size()
-lr = 1e-4
+lr = 1e-5
 num_epochs = 100
 
 print('-- Hyperparams --')
@@ -178,10 +181,8 @@ class InteriorNetDPT(pl.LightningModule):
         return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
                           lr=self.hparams.lr)
 
-
 # model setup
 model = InteriorNetDPT(batch_size, lr, num_epochs)
-
 # logging setup
 logger = TensorBoardLogger(logs_dir, 
                            name='finetune',
@@ -203,23 +204,44 @@ checkpoint = ModelCheckpoint(every_n_epochs=num_epochs//10,
 
 
 print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
-
-if torch.cuda.is_available():
-    if torch.cuda.device_count() > 1:
-        trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                             max_epochs=model.hparams.num_epochs,
-                             accelerator='ddp',
-                             logger=logger,
-                             callbacks=[checkpoint]) #,
-#                              progress_bar_refresh_rate=0)
+    
+if from_ckpt:
+    if torch.cuda.is_available():
+        if torch.cuda.device_count() > 1:
+            trainer = pl.Trainer(resume_from_checkpoint=checkpoint_path,
+                                 gpus=torch.cuda.device_count(), 
+                                 max_epochs=model.hparams.num_epochs,
+                                 accelerator='ddp',
+                                 logger=logger,
+                                 callbacks=[checkpoint]) #,
+    #                              progress_bar_refresh_rate=0)
+        else:
+            trainer = pl.Trainer(resume_from_checkpoint=checkpoint_path,
+                                 gpus=torch.cuda.device_count(), 
+                                 max_epochs=model.hparams.num_epochs,
+                                 logger=logger,
+                                 callbacks=[checkpoint])#,
+    #                              progress_bar_refresh_rate=0)
     else:
-        trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                             max_epochs=model.hparams.num_epochs,
-                             logger=logger,
-                             callbacks=[checkpoint])#,
-#                              progress_bar_refresh_rate=0)
+        trainer = pl.Trainer(max_epochs=1, logger=logger)
 else:
-    trainer = pl.Trainer(max_epochs=1, logger=logger)
+
+    if torch.cuda.is_available():
+        if torch.cuda.device_count() > 1:
+            trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
+                                 max_epochs=model.hparams.num_epochs,
+                                 accelerator='ddp',
+                                 logger=logger,
+                                 callbacks=[checkpoint]) #,
+    #                              progress_bar_refresh_rate=0)
+        else:
+            trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
+                                 max_epochs=model.hparams.num_epochs,
+                                 logger=logger,
+                                 callbacks=[checkpoint])#,
+    #                              progress_bar_refresh_rate=0)
+    else:
+        trainer = pl.Trainer(max_epochs=1, logger=logger)
     
 print('Training')
 

@@ -20,11 +20,11 @@ spec:
         resources:
           limits:
             memory: 32Gi
-            cpu: "6"
+            cpu: "8"
             nvidia.com/gpu: "1"
           requests:
             memory: 16Gi
-            cpu: "1"
+            cpu: "4"
             nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
@@ -76,5 +76,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - 'A40'
+                  - 'V100'
   backoffLimit: 0

@@ -29,7 +29,9 @@ spec:
           requests:
             memory: 32Gi
             cpu: "4"
-            nvidia.com/gpu: "2"    
+            nvidia.com/gpu: "2"  
+      nodeSelector:
+        nautilus.io/disktype: nvme  
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
