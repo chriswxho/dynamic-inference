@@ -86,7 +86,7 @@ class InteriorNetDPT(pl.LightningModule):
                           lr=self.hparams.lr)
 
     
-def train(lr: float, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s: bool):
+def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s: bool):
     '''
     Run the main training script for DPT.
     -------------------------------------
@@ -142,7 +142,7 @@ def train(lr: float, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s
 
     start = time.time()
 
-    batch_size = get_batch_size()
+    batch_size = get_batch_size(batch_size)
 
     print('-- Hyperparams --')
     print(f'Batchsize: {batch_size}')
@@ -202,7 +202,7 @@ def train(lr: float, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    checkpoint = ModelCheckpoint(every_n_epochs=num_epochs//10,
+    checkpoint = ModelCheckpoint(every_n_epochs=num_epochs//20,
                                  save_on_train_epoch_end=True,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
@@ -277,6 +277,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-l', '--lr', default=1e-5, help='learning rate', type=float
     )
+    
+    parser.add_argument(
+        '-b', '--batchsize', default=None, help='batchsize', type=int
+    )
 
     parser.add_argument(
         '-e', '--epochs', default=100, help='num. of epochs', type=int
@@ -295,4 +299,4 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     
-    train(args.lr, args.epochs, args.test, args.checkpoint, args.k8s)
+    train(args.lr, args.batchsize, args.epochs, args.test, args.checkpoint, args.k8s)
