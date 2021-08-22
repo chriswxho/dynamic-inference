@@ -18,7 +18,6 @@ spec:
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
           -l 1e-4
-          -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
           -k
         volumeMounts:
         - name: git-repo
@@ -29,11 +28,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 48Gi
+            memory: 72Gi
             cpu: "16"
             nvidia.com/gpu: "4"
           requests:
-            memory: 32Gi
+            memory: 64Gi
             cpu: "8"
             nvidia.com/gpu: "4"
       nodeSelector:

@@ -24,22 +24,26 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from dpt.plmodels import InteriorNetDPT
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
-from data.metrics import SILog, get_metrics
 from util.gpu_config import get_batch_size
 
 torch.manual_seed(0)
 np.random.seed(0)
 
     
-def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s: bool):
+def train(lr: float, batch_size: int, num_epochs: int, other_args):
     '''
     Run the main training script for DPT.
     -------------------------------------
     lr : learning rate
+    batch_size: batch size (across all GPUs s.t. the total batchsize = batch_size)
     num_epochs : number of epochs to train for
-    test_mode : if True, trains on a small subset of the data
+    
+    other_args:
+    -------
+    test : if True, trains on a small subset of the data
     checkpoint_path : path to checkpoint to restore training progress
     k8s : if True, acts as if running on k8s
+    verbose: if True, gives live loading bar updates, otherwise prints last epoch #
     '''
 
     # k8s paths
@@ -53,7 +57,7 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
     dataset_path = 'video_inference_common/resources'
     logs_path = 'train-logs'
 
-    if k8s:
+    if other_args['k8s']:
         input_path = os.path.join(k8s_repo, input_path)
         output_path = os.path.join(k8s_repo, output_path)
         model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
@@ -94,33 +98,6 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
     print(f'Epochs: {num_epochs}')
     print('-----------------')
 
-    # get shifted statistics
-
-    get_new = False
-
-    if get_new:
-        start = time.time()
-
-        full_dataset = InteriorNetDataset(dataset_path, transform=transform)
-        d = []
-        p = 0.1
-        for i in np.random.choice(len(full_dataset), size=round(p*len(full_dataset)), replace=False):
-            d.append(full_dataset[i]['depth'].flatten())
-
-        d = 1 / np.array(d)
-        idx = ~np.isnan(d)
-        t = np.median(d[idx])
-        s = (d[idx] - t).mean()
-
-        print(f'Retrieved statistics in {timedelta(seconds=round(time.time()-start,2))}s')
-        print(f's: {s}, t: {t}')
-
-    else:
-        s, t = 1, 0
-
-    # original nyu stats:
-    # s: 0.000305, t: 0.1378
-
     start = time.time()
 
     # model setup
@@ -132,10 +109,20 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
                                log_graph=True)
 
     # dataloader setup
-    interiornet_dataset = InteriorNetDataset(dataset_path, transform=transform, subsample=test_mode)
-    dataloader = DataLoader(interiornet_dataset, 
-                            batch_size=model.hparams.batch_size, 
-                            shuffle=True,
+    train_dataset = InteriorNetDataset(dataset_path, split='train', 
+                                       transform=transform, subsample=other_args['test'])
+    
+    val_dataset = InteriorNetDataset(dataset_path, split='val',
+                                     transform=transform, subsample=other_args['test'])
+    
+    train_loader = DataLoader(train_dataset, 
+                              batch_size=model.hparams.batch_size, 
+                              shuffle=True,
+                              prefetch_factor=16, # increase or decrease based on free gpu mem
+                              num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
+    
+    val_loader = DataLoader(val_dataset,
+                            batch_size=model.hparams.batch_size,
                             prefetch_factor=16, # increase or decrease based on free gpu mem
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
@@ -148,45 +135,33 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
     
-    if checkpoint_path is not None:
-        if torch.cuda.is_available():
-            if torch.cuda.device_count() > 1:
-                trainer = pl.Trainer(resume_from_checkpoint=checkpoint_path,
-                                     gpus=torch.cuda.device_count(), 
-                                     max_epochs=model.hparams.num_epochs,
-                                     accelerator='ddp',
-                                     logger=logger,
-                                     callbacks=[checkpoint])
-            else:
-                trainer = pl.Trainer(resume_from_checkpoint=checkpoint_path,
-                                     gpus=torch.cuda.device_count(), 
-                                     max_epochs=model.hparams.num_epochs,
-                                     logger=logger,
-                                     callbacks=[checkpoint])
+#     if checkpoint_path is not None:
+    if torch.cuda.is_available():
+        if torch.cuda.device_count() > 1:
+            trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
+                                 gpus=torch.cuda.device_count(), 
+                                 max_epochs=model.hparams.num_epochs,
+                                 accelerator='ddp',
+                                 logger=logger,
+                                 callbacks=[checkpoint],
+                                 progress_bar_refresh_rate=None if other_args['verbose'] else 0)
         else:
-            trainer = pl.Trainer(max_epochs=1, logger=logger)
+            trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
+                                 gpus=1, 
+                                 max_epochs=model.hparams.num_epochs,
+                                 logger=logger,
+                                 callbacks=[checkpoint],
+                                 progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:
-
-        if torch.cuda.is_available():
-            if torch.cuda.device_count() > 1:
-                trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                                     max_epochs=model.hparams.num_epochs,
-                                     accelerator='ddp',
-                                     logger=logger,
-                                     callbacks=[checkpoint])
-            else:
-                trainer = pl.Trainer(gpus=torch.cuda.device_count(), 
-                                     max_epochs=model.hparams.num_epochs,
-                                     logger=logger,
-                                     callbacks=[checkpoint])
-        else:
-            trainer = pl.Trainer(max_epochs=1, logger=logger)
+        trainer = pl.Trainer(max_epochs=1, logger=logger)
     
     print('Training')
 
     try:    
         start = time.time()
-        trainer.fit(model, dataloader)
+        trainer.fit(model, 
+                    train_dataloaders=train_loader,
+                    val_dataloaders=val_loader)
 
     except Exception as e:
         print('Training was halted due to the following error:')
@@ -199,9 +174,6 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
         print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
         print(f'Final trained weights saved in finetune{exp_idx}.pt')
-
-    # eval this video if test_mode=True:
-    # 3FO4IW2QC9U7_original_1_1
 
     torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
 
@@ -227,6 +199,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t', '--test', action='store_true'
     )
+    # trains on the first 20 frames of this video if test=True:
+    # 3FO4IW2QC9U7_original_1_1
 
     parser.add_argument(
         '-c', '--checkpoint', default=None, help='path to a checkpoint to resume'
@@ -235,6 +209,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '-k', '--k8s', action='store_true'
     )
+    
+    parser.add_argument(
+        '-v', '--verbose', action='store_true'
+    )
     args = parser.parse_args()
     
-    train(args.lr, args.batchsize, args.epochs, args.test, args.checkpoint, args.k8s)
+    other_args = dict(vars(args))
+    del other_args['lr'], other_args['batchsize'], other_args['epochs']
+
+    train(args.lr, args.batchsize, args.epochs, other_args)

@@ -18,8 +18,7 @@ spec:
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
           -l 1e-5
-          -b 16
-          -c /christh9-pvc/train-logs/finetune/version_14/checkpoints/dpt-finetune-epoch=39.ckpt
+          -t
           -k
         volumeMounts:
         - name: git-repo
@@ -30,13 +29,13 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 96Gi
-            cpu: "10"
-            nvidia.com/gpu: "4"
-          requests:
             memory: 64Gi
-            cpu: "8"
-            nvidia.com/gpu: "4"  
+            cpu: "2"
+            nvidia.com/gpu: "1"
+          requests:
+            memory: 32Gi
+            cpu: "2"
+            nvidia.com/gpu: "1"  
       # nvme not available on A40 gpus
       # nodeSelector:
       #   nautilus.io/disktype: nvme  
@@ -90,5 +89,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - 'A40'
+                  - '3090'
   backoffLimit: 0
