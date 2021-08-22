@@ -100,26 +100,28 @@ class BadPixelMetric:
         target_disparity[mask == 1] = 1.0 / target[mask == 1]
 
         scale, shift = self.compute_scale_and_shift(prediction, target_disparity, mask)
+        print(f's = {scale.item()}, t = {shift.item()}')
         prediction_aligned = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
+        print(prediction_aligned.mean().item(), target.mean().item())
 
-        disparity_cap = 1.0 / self.__depth_cap
-        prediction_aligned[prediction_aligned < disparity_cap] = disparity_cap
+#         disparity_cap = 1.0 / self.__depth_cap
+#         prediction_aligned[prediction_aligned < disparity_cap] = disparity_cap
 
-        prediciton_depth = 1.0 / prediction_aligned
+#         prediciton_depth = 1.0 / prediction_aligned
 
-        # bad pixel
-        err = torch.zeros_like(prediciton_depth, dtype=torch.float)
+        # delta acc
+        acc = torch.zeros_like(prediction_aligned, dtype=torch.float)
 
-        err[mask == 1] = torch.max(
-            prediciton_depth[mask == 1] / target[mask == 1],
-            target[mask == 1] / prediciton_depth[mask == 1],
+        acc[mask == 1] = torch.max(
+            prediction_aligned[mask == 1] / target[mask == 1],
+            target[mask == 1] / prediction_aligned[mask == 1],
         )
 
-        err[mask == 1] = (err[mask == 1] > self.__threshold).float()
-
-        p = torch.sum(err, (1, 2)) / torch.sum(mask, (1, 2))
-
-        return 100 * torch.mean(p)
+        acc[mask == 1] = (acc[mask == 1] < self.__threshold).float()
+        
+        p = torch.sum(acc, (1, 2)) / torch.sum(mask, (1, 2))
+        
+        return torch.mean(p) # max acc is 1
 
 
 def validate(model, nyu_data, nyu_split):
