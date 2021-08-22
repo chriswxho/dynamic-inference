@@ -12,14 +12,15 @@ spec:
         env:
         - name: CHASE_CI
           value: '1'
-        command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
-        args:
-        - >-
-          python3 
-          /opt/repo/dynamic-inference/train_dpt.py
-          -l 1e-5
-          -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
-          -k
+        # command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
+        # args:
+        # - >-
+        #   python3 
+        #   /opt/repo/dynamic-inference/train_dpt.py
+        #   -l 1e-5
+        #   -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
+        #   -k
+        command: ['sleep', '3650000000']
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -30,11 +31,11 @@ spec:
         resources:
           limits:
             memory: 32Gi
-            cpu: "8"
+            cpu: "2"
             nvidia.com/gpu: "1"
           requests:
             memory: 16Gi
-            cpu: "4"
+            cpu: "2"
             nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo

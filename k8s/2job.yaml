@@ -17,6 +17,9 @@ spec:
         - >-
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
+          -l 1e-4
+          -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
+          -k
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo

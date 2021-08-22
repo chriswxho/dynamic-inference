@@ -18,7 +18,8 @@ spec:
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
           -l 1e-5
-          -c /christh9-pvc/train-logs/finetune/version_9/checkpoints/dpt-finetune-epoch=19.ckpt
+          -b 16
+          -c /christh9-pvc/train-logs/finetune/version_14/checkpoints/dpt-finetune-epoch=39.ckpt
           -k
         volumeMounts:
         - name: git-repo
@@ -29,15 +30,16 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 48Gi
-            cpu: "8"
-            nvidia.com/gpu: "2"
+            memory: 96Gi
+            cpu: "10"
+            nvidia.com/gpu: "4"
           requests:
-            memory: 32Gi
-            cpu: "4"
-            nvidia.com/gpu: "2"  
-      nodeSelector:
-        nautilus.io/disktype: nvme  
+            memory: 64Gi
+            cpu: "8"
+            nvidia.com/gpu: "4"  
+      # nvme not available on A40 gpus
+      # nodeSelector:
+      #   nautilus.io/disktype: nvme  
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup

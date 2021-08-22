@@ -1,3 +1,6 @@
+This repository borrows from Ranftl et al.'s code, implemeneting the Dense Prediction Transformer for depth estimation along with a training script. I use it to train on the InteriorNet dataset. Credits go to the original authors and their works.
+
+
 ## Vision Transformers for Dense Prediction
 
 This repository contains code and models for our [paper](https://arxiv.org/abs/2103.13413):

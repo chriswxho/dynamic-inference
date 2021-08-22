@@ -21,7 +21,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from dpt.models import DPTDepthModel
+from dpt.plmodels import InteriorNetDPT
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
 from data.metrics import SILog, get_metrics
@@ -29,61 +29,6 @@ from util.gpu_config import get_batch_size
 
 torch.manual_seed(0)
 np.random.seed(0)
-
-class InteriorNetDPT(pl.LightningModule):
-    def __init__(self, batch_size, lr, num_epochs, model_path, s, t):
-        super().__init__()
-        self.model = DPTDepthModel(
-                        path=model_path,
-                        scale=s,
-                        shift=t,
-                        invert=True,
-                        backbone="vitb_rn50_384",
-                        non_negative=True,
-                        enable_attention_hooks=False,
-                     )
-        
-        self.num_epochs = num_epochs
-        self.model.pretrained.model.patch_embed.requires_grad = False
-        self.save_hyperparameters()
-        
-#         self.example_input_array = torch.ones((3, net_h, net_w)) # try this next
-            
-    def forward(self, x):
-        return self.model(x)
-    
-    def training_step(self, batch, batch_idx):
-        x, y = batch['image'], batch['depth']
-        yhat = self.model(x)
-        loss = SILog(yhat, y)
-        self.log('train_loss', loss, 
-                 on_epoch=True, 
-                 sync_dist=torch.cuda.device_count() > 1)
-        
-        metrics = get_metrics(yhat.detach(), y.detach())
-        self.log('absrel', metrics[0],
-                 on_step=False,
-                 on_epoch=True, 
-                 sync_dist=torch.cuda.device_count() > 1)
-        self.log('delta_acc', metrics[1], 
-                 on_step=False,
-                 on_epoch=True, 
-                 sync_dist=torch.cuda.device_count() > 1)
-        self.log('mae', metrics[2], 
-                 on_step=False,
-                 on_epoch=True, 
-                 sync_dist=torch.cuda.device_count() > 1)
-        return loss
-    
-    def on_train_start(self):
-        self.logger.log_hyperparams(self.hparams)
-        
-#     def training_epoch_end(self, _):
-#         self.logger.log_graph(self)
-    
-    def configure_optimizers(self):
-        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
-                          lr=self.hparams.lr)
 
     
 def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoint_path: str, k8s: bool):
@@ -97,7 +42,6 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
     k8s : if True, acts as if running on k8s
     '''
 
-#     checkpoint_path = '/christh9-pvc/train-logs/finetune/version_5/checkpoints/dpt-finetune-epoch=9.ckpt'
     # k8s paths
     k8s_repo = r'opt/repo/dynamic-inference'
     k8s_pvc = r'christh9-pvc'
@@ -172,14 +116,7 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
         print(f's: {s}, t: {t}')
 
     else:
-        s, t = 0.4364, 0.4115
-
-    # depth stats:
-    # s: 0.22012925148010254, t: 2.445845127105713, 
-    # s: 0.20440419018268585, t: 2.446396827697754
-
-    # disparity stats:
-    # s: 0.4363926351070404, t: 0.4114949703216553
+        s, t = 1, 0
 
     # original nyu stats:
     # s: 0.000305, t: 0.1378
@@ -187,7 +124,8 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
     start = time.time()
 
     # model setup
-    model = InteriorNetDPT(batch_size, lr, num_epochs, model_path, s, t)
+    model = InteriorNetDPT(batch_size, lr, num_epochs, model_path)
+    
     # logging setup
     logger = TensorBoardLogger(logs_dir, 
                                name='finetune',
@@ -198,7 +136,7 @@ def train(lr: float, batch_size: int, num_epochs: int, test_mode: bool, checkpoi
     dataloader = DataLoader(interiornet_dataset, 
                             batch_size=model.hparams.batch_size, 
                             shuffle=True,
-                            prefetch_factor=8,
+                            prefetch_factor=16, # increase or decrease based on free gpu mem
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
