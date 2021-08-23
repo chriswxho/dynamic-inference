@@ -8,7 +8,7 @@ from data.metrics import SILog, DepthMetrics
 class InteriorNetDPT(pl.LightningModule):
     
     def __init__(self, batch_size: int, lr: float, num_epochs: int, model_path: str, 
-                 s=1, t=0, net_w=640, net_h=480):
+                 s=1, t=0, net_w=640, net_h=480, **kwargs):
         
         super().__init__()
         self.model = DPTDepthModel(
@@ -65,7 +65,8 @@ class InteriorNetDPT(pl.LightningModule):
         self.logger.log_hyperparams(self.hparams)
         
     def on_train_epoch_start(self):
-        print(f'Epoch {self.current_epoch}')
+        if 'verbose' in kwargs and not kwargs['verbose']:
+            print(f'Epoch {self.current_epoch}')
         
 #     def training_epoch_end(self, _):
 #         self.logger.log_graph(self)

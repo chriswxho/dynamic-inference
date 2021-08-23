@@ -85,8 +85,6 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
             PrepareForNet(),
         ]
     )
-    
-    # create dataloader
 
     start = time.time()
 
@@ -101,7 +99,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     start = time.time()
 
     # model setup
-    model = InteriorNetDPT(batch_size, lr, num_epochs, model_path)
+    model = InteriorNetDPT(batch_size, lr, num_epochs, model_path, verbose=other_args['verbose'])
     
     # logging setup
     logger = TensorBoardLogger(logs_dir, 
@@ -135,7 +133,6 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
     
-#     if checkpoint_path is not None:
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
             trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
