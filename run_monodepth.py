@@ -16,15 +16,10 @@ from dpt.midas_net import MidasNet_large
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 
 from data.metrics import get_metrics
+from util.misc import round_sig
 #from util.misc import visualize_attention
 
 from video_inference_common.video_inference.datasets import interiornet
-
-from math import log10, floor
-def round_sig(x, sig=2):
-    if x == 0:
-        return 0
-    return round(x, sig-int(floor(log10(abs(x))))-1)
 
 def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=True):
     """Run MonoDepthNN to compute depth maps.

@@ -1,3 +1,4 @@
+from math import log10, floor
 import matplotlib.pyplot as plt
 
 from dpt.vit import get_mean_attention_map
@@ -61,3 +62,8 @@ def visualize_attention(input, model, prediction, model_type):
     plt.subplot(3,4,12), plt.imshow(get_mean_attention_map(attn4, -1, input.shape)), plt.axis("off")
     plt.tight_layout()
     plt.show()
+
+def round_sig(x, sig=2):
+    if x == 0:
+        return 0
+    return round(x, sig-int(floor(log10(abs(x))))-1)

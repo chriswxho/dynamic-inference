@@ -47,7 +47,7 @@ class DepthMetrics:
 
         return s, t
     
-    def __call__(self, prediction, target):
+    def __call__(self, prediction, target, st: tuple=None):
         '''
         Returns absrel, mae, and delta accuracies.
         assume that no values in the ground truth map are zero,
@@ -60,7 +60,11 @@ class DepthMetrics:
         metrics = {}
         mask = ~torch.isnan(target)
 
-        scale, shift = self.compute_scale_and_shift(prediction, target, mask)
+        if st is None:
+            scale, shift = self.compute_scale_and_shift(prediction, target, mask)
+        else:
+            scale, shift = st
+            
         prediction_aligned = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
 
         # optional depthcap step
@@ -87,5 +91,9 @@ class DepthMetrics:
             p = torch.sum(acc, (1, 2)) / torch.sum(mask, (1, 2))
         
             metrics[f'delta{delta+1}'] = torch.mean(p).item() # max acc is 1
+            
+        if st is None:
+            metrics['s'] = scale
+            metrics['t'] = shift
                               
         return metrics

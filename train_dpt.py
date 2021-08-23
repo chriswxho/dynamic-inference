@@ -107,10 +107,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                log_graph=True)
 
     # dataloader setup
-    train_dataset = InteriorNetDataset(dataset_path, split='train', 
+    train_dataset = InteriorNetDataset(dataset_path, split='train' if not other_args['test'] else 'test', 
                                        transform=transform, subsample=other_args['test'])
     
-    val_dataset = InteriorNetDataset(dataset_path, split='val',
+    val_dataset = InteriorNetDataset(dataset_path, split='val' if not other_args['test'] else 'test',
                                      transform=transform, subsample=other_args['test'])
     
     train_loader = DataLoader(train_dataset, 
@@ -125,7 +125,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    checkpoint = ModelCheckpoint(every_n_epochs=num_epochs//20,
+    checkpoint = ModelCheckpoint(every_n_epochs=5,
                                  save_on_train_epoch_end=True,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
@@ -140,14 +140,16 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  max_epochs=model.hparams.num_epochs,
                                  accelerator='ddp',
                                  logger=logger,
-                                 callbacks=[checkpoint],
+                                 callbacks=[checkpoint] if not other_args['test'] else None,
+                                 num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
         else:
             trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
                                  gpus=1, 
                                  max_epochs=model.hparams.num_epochs,
                                  logger=logger,
-                                 callbacks=[checkpoint],
+                                 callbacks=[checkpoint] if not other_args['test'] else None,
+                                 num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:
         trainer = pl.Trainer(max_epochs=1, logger=logger)
@@ -162,7 +164,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     except Exception as e:
         print('Training was halted due to the following error:')
-        print(e)
+        raise
 
     else:
         print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
@@ -171,8 +173,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
         print(f'Final trained weights saved in finetune{exp_idx}.pt')
-
-    torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
+        torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
 
     logger.save()
     

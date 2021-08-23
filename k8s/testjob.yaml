@@ -30,11 +30,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 32Gi
+            memory: 16Gi
             cpu: "2"
             nvidia.com/gpu: "1"
           requests:
-            memory: 16Gi
+            memory: 8Gi
             cpu: "2"
             nvidia.com/gpu: "1"    
       initContainers:
@@ -87,5 +87,5 @@ spec:
                 - key: gpu-type
                   operator: In
                   values:
-                  - 'V100'
+                  - '2080Ti'
   backoffLimit: 0
