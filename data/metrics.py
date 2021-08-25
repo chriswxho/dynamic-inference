@@ -25,6 +25,10 @@ class DepthMetrics:
         self.depth_cap = 1e8
     
     def compute_scale_and_shift(self, prediction, target, mask):
+        
+        # dealing with NaN in target:
+        target[mask == 0] = 0
+        
         # system matrix: A = [[a_00, a_01], [a_10, a_11]]
         a_00 = torch.sum(mask * prediction * prediction, (1, 2))
         a_01 = torch.sum(mask * prediction, (1, 2))
@@ -37,13 +41,25 @@ class DepthMetrics:
         # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
         s = torch.zeros_like(b_0)
         t = torch.zeros_like(b_1)
-
+        
         det = a_00 * a_11 - a_01 * a_01
         # A needs to be a positive definite matrix.
         valid = det > 0
 
         s[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
         t[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
+        
+        if torch.any(torch.isnan(torch.cat([s,t]))):
+            print('a_00 finite?', torch.all(torch.isfinite(a_00)))
+            print('a_01 finite?', torch.all(torch.isfinite(a_01)))
+            print('a_11 finite?', torch.all(torch.isfinite(a_11)))
+            print()
+            print('b_0 finite?', torch.all(torch.isfinite(b_0)))
+            print('b_1 finite?', torch.all(torch.isfinite(b_1)))
+            print()
+            print('det finite and nonzero?', torch.all(torch.isfinite(det[valid]) * torch.is_nonzero(det[valid])))
+            print('is s[valid] good?', torch.all(torch.isfinite(s[valid])))
+            print('is t[valid] good?', torch.all(torch.isfinite(t[valid])))
 
         return s, t
     
@@ -95,5 +111,14 @@ class DepthMetrics:
         if st is None:
             metrics['s'] = scale
             metrics['t'] = shift
+            
+        if torch.any(torch.isnan(torch.cat([metrics['s'], metrics['t']]))):
+            r = torch.any(torch.isnan(prediction))
+            print('Were predictions nan?', r)
+            print('Prediction shape:', prediction.shape)
+            print('Was target not masked properly?', torch.any(torch.isnan(target[mask==1])))
+            print('Target shape:', target.shape)
+            print('Was align prediction nan (if prediction was not)?', not r and torch.any(torch.isnan(prediction_aligned)))
+            print('-'*50)
                               
         return metrics

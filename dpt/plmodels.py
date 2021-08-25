@@ -57,6 +57,11 @@ class InteriorNetDPT(pl.LightningModule):
         self.s.append(metrics.pop('s'))
         self.t.append(metrics.pop('t'))
         
+        if torch.any(torch.isnan(torch.cat([self.s[-1], self.t[-1]]))):
+            print('in train step:')
+            print(f's: {self.s[-1]}')
+            print(f't: {self.t[-1]}')
+        
         self.log_dict(metrics,
                       on_step=False,
                       on_epoch=True,
@@ -79,6 +84,13 @@ class InteriorNetDPT(pl.LightningModule):
                       on_epoch=True,
                       sync_dist=torch.cuda.device_count() > 1)
         
+        if 'delta1' not in metrics:
+            print(f'Delta1 missing from batch idx{batch_idx}')
+        if 'mae' not in metrics:
+            print(f'mae missing from batch idx{batch_idx}')
+        if 'absrel' not in metrics:
+            print(f'absrel missing from batch idx{batch_idx}')
+            
         return {'loss': loss, **metrics}
     
     def configure_optimizers(self):
@@ -123,3 +135,5 @@ class InteriorNetDPT(pl.LightningModule):
     def on_validation_epoch_start(self):
         if len(self.s) > 0:
             self.s, self.t = torch.cat(self.s).mean(0), torch.cat(self.t).mean(0)
+        else:
+            raise ValueError('Empty s,t arrays (empty batches)')
