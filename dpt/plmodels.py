@@ -34,9 +34,6 @@ class InteriorNetDPT(pl.LightningModule):
         self.metrics = DepthMetrics()
         self.kwargs = kwargs
         
-        self.s = []
-        self.t = []
-        
         self.val_outputs = None
 #         self.example_input_array = torch.ones((1, 3, net_h, net_w))
             
@@ -54,10 +51,7 @@ class InteriorNetDPT(pl.LightningModule):
         
         # gather scale, shift from computed metrics
         # to use for validation later
-        metrics = self.metrics(yhat.detach(), y.detach())
-        
-        self.s.append(metrics.pop('s'))
-        self.t.append(metrics.pop('t'))
+        metrics = self.metrics(yhat.detach(), y.detach(), mode='train')
         
         self.log_dict(metrics,
                       on_step=False,
@@ -75,7 +69,7 @@ class InteriorNetDPT(pl.LightningModule):
                  on_epoch=True, 
                  sync_dist=torch.cuda.device_count() > 1)
         
-        metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
+        metrics = self.metrics(yhat, y, mode='val')
         self.log_dict(metrics,
                       on_step=False,
                       on_epoch=True,
@@ -114,7 +108,6 @@ class InteriorNetDPT(pl.LightningModule):
             self.print(f'Epoch {self.current_epoch}')
             
     def on_train_epoch_end(self):
-        self.s, self.t = [], []
         res = Counter()
         for out in self.val_outputs:
             res += out
@@ -131,9 +124,3 @@ class InteriorNetDPT(pl.LightningModule):
         self.logger.log_graph(self)
 
         self.val_outputs = None
-            
-    def on_validation_epoch_start(self):
-        if len(self.s) > 0:
-            self.s, self.t = torch.cat(self.s).mean(0), torch.cat(self.t).mean(0)
-        else:
-            raise ValueError('Empty s,t arrays (empty batches)')

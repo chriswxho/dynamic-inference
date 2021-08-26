@@ -63,7 +63,7 @@ class DepthMetrics:
 
         return s, t
     
-    def __call__(self, prediction, target, st: tuple=None):
+    def __call__(self, prediction, target, mode: str):
         '''
         Returns absrel, mae, and delta accuracies.
         assume that no values in the ground truth map are zero,
@@ -74,55 +74,33 @@ class DepthMetrics:
     
         # transform predicted disparity to aligned depth
         metrics = {}
-        mask = (~torch.isnan(target) * (target != 0)).float()
+        mask = ~torch.isnan(target) * (target != 0)
 
-        if st is None:
-            scale, shift = self.compute_scale_and_shift(prediction, target, mask)
-            mode = 'train_'
-        else:
-            scale, shift = st
-            mode = 'val_'
-            
-        prediction_aligned = scale.view(-1, 1, 1) * prediction + shift.view(-1, 1, 1)
+        mode += '_'
 
         # optional depthcap step
-        prediction_aligned[prediction_aligned > self.depth_cap] = self.depth_cap
+        prediction[prediction > self.depth_cap] = self.depth_cap
 
         # absrel
-        metrics[f'{mode}absrel'] = (torch.abs(prediction_aligned[mask == 1] - target[mask == 1]) / target[mask == 1]).mean().item()
+        metrics[f'{mode}absrel'] = (torch.abs(prediction[mask == 1] - target[mask == 1]) / target[mask == 1]).mean().item()
 
         # mae
-        metrics[f'{mode}mae'] = torch.abs(prediction_aligned[mask == 1] - target[mask == 1]).mean().item()
+        metrics[f'{mode}mae'] = torch.abs(prediction[mask == 1] - target[mask == 1]).mean().item()
         
         # delta acc
         for delta in range(self.n_deltas):
-            acc = torch.zeros_like(prediction_aligned, dtype=torch.float)
+            acc = torch.zeros_like(prediction, dtype=torch.float)
 
             acc[mask == 1] = torch.max(
-                prediction_aligned[mask == 1] / target[mask == 1],
-                target[mask == 1] / prediction_aligned[mask == 1],
+                prediction[mask == 1] / target[mask == 1],
+                target[mask == 1] / prediction[mask == 1],
             ).float()
 
             acc[mask == 1] = (acc[mask == 1] < (self.threshold if delta == 0 
                                                 else np.power(self.threshold, delta+1))).float()
 
             p = torch.sum(acc, (1, 2)) / torch.sum(mask, (1, 2))
-#             pu = torch.unique(p)
-#             print('p invalid values?', (float('inf') in pu or float('nan') in pu))
         
             metrics[f'{mode}delta{delta+1}'] = torch.mean(p).item() # max acc is 1
-        
-#         import math
-#         if not all([math.isfinite(v) for v in metrics.values()]):
-#             print('target contained zeros after masking?', 0 in torch.unique(target[mask == 1]))
-#             print('prediction_aligned has nans?', torch.any(torch.isnan(prediction_aligned[mask == 1])))
-#             print('target has infinite values?', torch.any(torch.isinf(target[mask == 1])))
-#             print('prediction has infinite values?', torch.any(torch.isinf(prediction_aligned[mask == 1])))
-#         else:
-#             print('All stats are valid!')
-            
-        if st is None:
-            metrics['s'] = scale
-            metrics['t'] = shift
             
         return metrics     

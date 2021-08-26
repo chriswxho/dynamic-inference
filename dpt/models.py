@@ -115,9 +115,9 @@ class DPTDepthModel(DPT):
         inv_depth = super().forward(x).squeeze(dim=1)
         
         if self.invert:
-            depth = self.scale * inv_depth + self.shift
-            depth[depth < 1e-8] = 1e-8
-            depth = 1.0 / depth
+            inv_depth = self.scale * inv_depth + self.shift
+            inv_depth[inv_depth < 1e-8] = 1e-8
+            depth = 1.0 / inv_depth
             return depth
         else:
             return inv_depth
