@@ -31,11 +31,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 72Gi
+            memory: 128Gi
             cpu: "16"
             nvidia.com/gpu: "4"
           requests:
-            memory: 64Gi
+            memory: 96Gi
             cpu: "8"
             nvidia.com/gpu: "4"
       nodeSelector:

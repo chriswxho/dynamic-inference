@@ -30,11 +30,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 96Gi
+            memory: 192Gi
             cpu: "6"
             nvidia.com/gpu: "4"
           requests:
-            memory: 64Gi
+            memory: 128Gi
             cpu: "4"
             nvidia.com/gpu: "4"  
       # nvme not available on A40 gpus

@@ -110,8 +110,8 @@ def get_scale_and_shift(args):
     print(f't: {shift}')
     print(f"ratio used: {round(args['ratio']*100)}%")
     
-    df = pd.DataFrame({ 'scale': scale, 
-                        'shift': shift })
+    df = pd.DataFrame({ 'scale': [scale], 
+                        'shift': [shift] })
     
     dest_path = os.path.join(logs_path, f"st_{args['ratio']}") 
     print(f'Results saved in {dest_path}')
