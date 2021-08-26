@@ -23,7 +23,8 @@ def getlines(files: [str], subsample):
 class InteriorNetDataset(Dataset):
     
     def __init__(self, dataset_path: str, split: str='train',
-                 n_folds: int=5, fold_idx: int=0, transform=None, subsample=False):
+                 n_folds: int=5, fold_idx: int=0, transform=None, 
+                 subsample=False, no_folds=False):
         '''
         dataset_path: path to the folder containing the txts that specify dataset
                       (relative to ./dynamic-inference)
@@ -47,7 +48,7 @@ class InteriorNetDataset(Dataset):
         
         self.videos = np.array(getlines(video_names, subsample))
         
-        if split != 'test':
+        if not no_folds:
             fold_size, mod = divmod(len(self.videos), n_folds) # this is not consistent when using -t
 
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments

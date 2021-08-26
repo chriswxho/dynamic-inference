@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: pvc-container
-    image: ubuntu
+    image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
     args: ["sleep", "365000000"] 
     volumeMounts:
     - mountPath: /christh9-pvc

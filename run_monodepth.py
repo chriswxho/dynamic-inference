@@ -77,8 +77,6 @@ def run(input_path, output_path, model_path, model_type="dpt_hybrid", optimize=T
             path=model_path,
             scale=0.000305,
             shift=0.1378,
-#             scale=0.4364,
-#             shift=0.4115,
             invert=True,
             backbone="vitb_rn50_384",
             non_negative=True,

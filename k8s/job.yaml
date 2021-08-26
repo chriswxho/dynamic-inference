@@ -30,7 +30,7 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 72Gi
+            memory: 96Gi
             cpu: "6"
             nvidia.com/gpu: "4"
           requests:

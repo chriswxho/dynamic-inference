@@ -62,7 +62,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         output_path = os.path.join(k8s_repo, output_path)
         model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
         dataset_path = os.path.join(k8s_repo, dataset_path)
-        logs_dir = os.path.join(k8s_pvc, logs_path)
+        logs_path = os.path.join(k8s_pvc, logs_path)
         os.chdir('/')
 
     net_w = 640
@@ -102,7 +102,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     model = InteriorNetDPT(batch_size, lr, num_epochs, model_path, verbose=other_args['verbose'])
     
     # logging setup
-    logger = TensorBoardLogger(logs_dir, 
+    logger = TensorBoardLogger(logs_path, 
                                name='finetune',
                                log_graph=True)
 
@@ -171,9 +171,9 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     finally:
         print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
-        exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_dir)))))
+        exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_path)))))
         print(f'Final trained weights saved in finetune{exp_idx}.pt')
-        torch.save(model.state_dict(), os.path.join(logs_dir, f'finetune{exp_idx}.pt'))
+        torch.save(model.state_dict(), os.path.join(logs_path, f'finetune{exp_idx}.pt'))
 
     logger.save()
     
