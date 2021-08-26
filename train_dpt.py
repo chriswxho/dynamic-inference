@@ -117,11 +117,13 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                               batch_size=model.hparams.batch_size, 
                               shuffle=True,
                               prefetch_factor=16, # increase or decrease based on free gpu mem
+                              pin_memory=True,
                               num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
     
     val_loader = DataLoader(val_dataset,
                             batch_size=model.hparams.batch_size,
                             prefetch_factor=16, # increase or decrease based on free gpu mem
+                            pin_memory=True,
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
@@ -156,7 +158,9 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     
     print('Training')
 
-    try:    
+    try:
+        cv2.setNumThreads(0) # disable cv2 threading to avoid deadlocks
+        
         start = time.time()
         trainer.fit(model, 
                     train_dataloaders=train_loader,
