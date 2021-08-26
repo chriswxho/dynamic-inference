@@ -36,7 +36,10 @@ spec:
           requests:
             memory: 8Gi
             cpu: "2"
-            nvidia.com/gpu: "1"    
+            nvidia.com/gpu: "1"
+      # nvme drives are not available on A40 cluster
+      nodeSelector:
+        nautilus.io/disktype: nvme 
       initContainers:
       - name: init-clone-repo
         image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup

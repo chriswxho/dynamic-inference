@@ -48,10 +48,10 @@ class InteriorNetDataset(Dataset):
         self.videos = np.array(getlines(video_names, subsample))
         
         if split != 'test':
-            fold_size, mod = divmod(len(self.videos), n_folds)
+            fold_size, mod = divmod(len(self.videos), n_folds) # this is not consistent when using -t
 
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments
-
+            if subsample: return
             if split == 'train':
                 self.videos = np.concatenate([self.videos[:fold_idx*fold_size], 
                                               self.videos[(fold_idx+1)*fold_size:]])
@@ -60,7 +60,7 @@ class InteriorNetDataset(Dataset):
         
     def __len__(self):
         # each video is 1000 frames
-        return 20 * len(self.videos) if self.subsample else 1000 * len(self.videos) 
+        return 100 * len(self.videos) if self.subsample else 1000 * len(self.videos) 
     
     def __getitem__(self, idx):
         

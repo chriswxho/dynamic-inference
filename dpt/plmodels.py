@@ -1,6 +1,7 @@
 from collections import Counter
-from functools import reduce
+from itertools import chain
 
+import math
 import numpy as np
 import torch
 import torch.optim as optim
@@ -28,6 +29,7 @@ class InteriorNetDPT(pl.LightningModule):
         
         self.num_epochs = num_epochs
         self.model.pretrained.model.patch_embed.requires_grad = False
+        
         self.save_hyperparameters()
         self.metrics = DepthMetrics()
         self.kwargs = kwargs
@@ -57,11 +59,6 @@ class InteriorNetDPT(pl.LightningModule):
         self.s.append(metrics.pop('s'))
         self.t.append(metrics.pop('t'))
         
-        if torch.any(torch.isnan(torch.cat([self.s[-1], self.t[-1]]))):
-            print('in train step:')
-            print(f's: {self.s[-1]}')
-            print(f't: {self.t[-1]}')
-        
         self.log_dict(metrics,
                       on_step=False,
                       on_epoch=True,
@@ -83,13 +80,6 @@ class InteriorNetDPT(pl.LightningModule):
                       on_step=False,
                       on_epoch=True,
                       sync_dist=torch.cuda.device_count() > 1)
-        
-        if 'delta1' not in metrics:
-            print(f'Delta1 missing from batch idx{batch_idx}')
-        if 'mae' not in metrics:
-            print(f'mae missing from batch idx{batch_idx}')
-        if 'absrel' not in metrics:
-            print(f'absrel missing from batch idx{batch_idx}')
             
         return {'loss': loss, **metrics}
     
@@ -103,8 +93,13 @@ class InteriorNetDPT(pl.LightningModule):
             res += out
         self.print(f'--- Epoch {self.current_epoch} training ---')
         for name, val in res.items():
-            if name == 'loss': val = val.item()
-            self.print(f'train_{name}: {round_sig(val / len(epoch_outputs), 4)}')
+            if name == 'loss':
+                name = 'train_loss'
+                val = val.item()
+            if math.isinf(val):
+                self.print(f'{name}: {val}')
+                continue
+            self.print(f'{name}: {round_sig(val / len(epoch_outputs), 4)}')
         self.print('-'*25)
         self.logger.log_graph(self)
         
@@ -125,8 +120,13 @@ class InteriorNetDPT(pl.LightningModule):
             res += out
         self.print(f'--- Epoch {self.current_epoch} validation ---')
         for name, val in res.items():
-            if name == 'loss': val = val.item()
-            self.print(f'val_{name}: {round_sig(val / len(self.val_outputs), 4)}')
+            if name == 'loss': 
+                name = 'val_loss'
+                val = val.item()
+            if math.isinf(val):
+                self.print(f'{name}: {val}')
+                continue
+            self.print(f'{name}: {round_sig(val / len(self.val_outputs), 4)}')
         self.print('-'*25)
         self.logger.log_graph(self)
 

@@ -1,0 +1,5 @@
+python3-opencv
+python3-pip
+time
+vim
+git

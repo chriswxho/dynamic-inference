@@ -12,17 +12,15 @@ spec:
         env:
         - name: CHASE_CI
           value: '1'
-        # command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
-        # args:
-        # - >-
-        #   python3 
-        #   /opt/repo/dynamic-inference/train_dpt.py
-        #   -l 1e-4
-        #   -b 4
-        #   -e 10
-        #   -t
-        #   -k
-        command: ['sleep', '3650000000']
+        command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
+        args:
+        - >-
+          python3 
+          /opt/repo/dynamic-inference/train_dpt.py
+          -l 1e-4
+          -e 200
+          -k
+        # command: ['sleep', '3650000000']
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo

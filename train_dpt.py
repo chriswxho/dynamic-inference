@@ -107,10 +107,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                log_graph=True)
 
     # dataloader setup
-    train_dataset = InteriorNetDataset(dataset_path, split='train' if not other_args['test'] else 'test', 
+    train_dataset = InteriorNetDataset(dataset_path, split='train', 
                                        transform=transform, subsample=other_args['test'])
     
-    val_dataset = InteriorNetDataset(dataset_path, split='val' if not other_args['test'] else 'test',
+    val_dataset = InteriorNetDataset(dataset_path, split='val',
                                      transform=transform, subsample=other_args['test'])
     
     train_loader = DataLoader(train_dataset, 
