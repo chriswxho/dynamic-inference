@@ -17,7 +17,7 @@ spec:
         - >-
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
-          -l 1e-4
+          -l 1e-5
           -b 16
           -e 200
           -k
@@ -59,6 +59,8 @@ spec:
         args:
           - clone
           - --single-branch
+          - --branch
+          - intel-impl
           - --recurse-submodules
           - --remote-submodules
           - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
