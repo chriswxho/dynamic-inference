@@ -80,7 +80,7 @@ class InteriorNetDPT(pl.LightningModule):
     def configure_optimizers(self):
         return optim.Adam([
                             {'params': filter(lambda p: p.requires_grad, self.model.pretrained.parameters())},
-                            {'params': self.model.scratch.parameters(), 'lr': self.hparams * 10}
+                            {'params': self.model.scratch.parameters(), 'lr': self.hparams.lr * 10}
                           ], 
                           lr=self.hparams.lr)
     

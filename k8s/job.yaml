@@ -17,7 +17,7 @@ spec:
         - >-
           python3 
           /opt/repo/dynamic-inference/train_dpt.py
-          -l 1e-5
+          -b 16
           -e 200
           -k
         # command: ['sleep', '3650000000']
@@ -30,11 +30,11 @@ spec:
           mountPath: /dev/shm
         resources:
           limits:
-            memory: 192Gi
+            memory: 100Gi
             cpu: "6"
             nvidia.com/gpu: "4"
           requests:
-            memory: 128Gi
+            memory: 72Gi
             cpu: "4"
             nvidia.com/gpu: "4"  
       # nvme not available on A40 gpus
@@ -59,8 +59,8 @@ spec:
         args:
           - clone
           - --single-branch
-          - --branch
-          - intel-impl
+          # - --branch
+          # - intel-impl
           - --recurse-submodules
           - --remote-submodules
           - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference

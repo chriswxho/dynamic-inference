@@ -117,7 +117,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     # dataloader setup
     train_dataset = InteriorNetDataset(dataset_path, split='train', 
-                                       transform=transform, subsample=other_args['test'])
+                                       transform=transform, subsample=other_args['test'],)
     
     val_dataset = InteriorNetDataset(dataset_path, split='val',
                                      transform=transform, subsample=other_args['test'])

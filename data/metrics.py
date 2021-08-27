@@ -80,6 +80,7 @@ class DepthMetrics:
 
         # optional depthcap step
         prediction[prediction > self.depth_cap] = self.depth_cap
+        prediction[prediction == 0] = 1e-8
 
         # absrel
         metrics[f'{mode}absrel'] = (torch.abs(prediction[mask == 1] - target[mask == 1]) / target[mask == 1]).mean().item()
@@ -89,13 +90,14 @@ class DepthMetrics:
         
         # delta acc
         for delta in range(self.n_deltas):
+            
             acc = torch.zeros_like(prediction, dtype=torch.float)
-
+            
             acc[mask == 1] = torch.max(
                 prediction[mask == 1] / target[mask == 1],
                 target[mask == 1] / prediction[mask == 1],
             ).float()
-
+            
             acc[mask == 1] = (acc[mask == 1] < (self.threshold if delta == 0 
                                                 else np.power(self.threshold, delta+1))).float()
 
