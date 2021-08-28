@@ -110,11 +110,11 @@ class InteriorNetDPT(pl.LightningModule):
         self.logger.log_hyperparams(self.hparams)
         
     def on_train_epoch_start(self):
+        self.s, self.t = [], []
         if 'verbose' in self.kwargs and not self.kwargs['verbose']:
             self.print(f'Epoch {self.current_epoch}')
             
     def on_train_epoch_end(self):
-        self.s, self.t = [], []
         res = Counter()
         for out in self.val_outputs:
             res += out
@@ -135,5 +135,17 @@ class InteriorNetDPT(pl.LightningModule):
     def on_validation_epoch_start(self):
         if len(self.s) > 0:
             self.s, self.t = torch.tensor(self.s).mean(0), torch.tensor(self.t).mean(0)
+            self.log('s', self.s, 
+                     on_step=False,
+                     on_epoch=True, 
+                     sync_dist=torch.cuda.device_count() > 1)
+            
+            self.log('t', self.t, 
+                     on_step=False,
+                     on_epoch=True, 
+                     sync_dist=torch.cuda.device_count() > 1)
+            
+            self.logger.log_dir
+            
         else:
             raise ValueError('Empty s,t arrays (empty batches)')
