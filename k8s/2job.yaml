@@ -59,6 +59,8 @@ spec:
         args:
           - clone
           - --single-branch
+          - --branch
+          - intel-impl
           - --recurse-submodules
           - --remote-submodules
           - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
