@@ -84,7 +84,10 @@ class InteriorNetDPT(pl.LightningModule):
         return {'loss': loss, **metrics}
     
     def configure_optimizers(self):
-        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
+        return optim.Adam([
+                            {'params': filter(lambda p: p.requires_grad, self.model.pretrained.parameters())},
+                            {'params': self.model.scratch.parameters(), 'lr': self.hparams.lr * 10}
+                          ], 
                           lr=self.hparams.lr)
     
     def training_epoch_end(self, epoch_outputs):
@@ -144,8 +147,6 @@ class InteriorNetDPT(pl.LightningModule):
                      on_step=False,
                      on_epoch=True, 
                      sync_dist=torch.cuda.device_count() > 1)
-            
-            self.logger.log_dir
             
         else:
             raise ValueError('Empty s,t arrays (empty batches)')

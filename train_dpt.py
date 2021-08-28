@@ -154,7 +154,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         trainer = pl.Trainer(max_epochs=1, logger=logger)
     
     print('Training')
-    print('saved in', trainer.log_dir)
+    
     try:
         cv2.setNumThreads(0) # disable cv2 threading to avoid deadlocks
         
