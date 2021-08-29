@@ -84,7 +84,10 @@ class InteriorNetDPT(pl.LightningModule):
         return {'loss': loss, **metrics}
     
     def configure_optimizers(self):
-        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()), 
+        return optim.Adam([
+                            {'params': filter(lambda p: p.requires_grad, self.model.pretrained.parameters())},
+                            {'params': self.model.scratch.parameters(), 'lr': self.hparams.lr * 10}
+                          ], 
                           lr=self.hparams.lr)
     
     def training_epoch_end(self, epoch_outputs):
@@ -110,11 +113,11 @@ class InteriorNetDPT(pl.LightningModule):
         self.logger.log_hyperparams(self.hparams)
         
     def on_train_epoch_start(self):
+        self.s, self.t = [], []
         if 'verbose' in self.kwargs and not self.kwargs['verbose']:
             self.print(f'Epoch {self.current_epoch}')
             
     def on_train_epoch_end(self):
-        self.s, self.t = [], []
         res = Counter()
         for out in self.val_outputs:
             res += out
