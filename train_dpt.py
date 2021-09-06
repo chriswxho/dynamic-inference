@@ -146,7 +146,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  max_epochs=model.hparams.num_epochs,
                                  accelerator='ddp',
                                  logger=logger,
-                                 callbacks=[model_ckpt, st_ckpt] if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
         else:
@@ -154,7 +154,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  gpus=1,
                                  max_epochs=model.hparams.num_epochs,
                                  logger=logger,
-                                 callbacks=[model_ckpt, st_ckpt] if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:

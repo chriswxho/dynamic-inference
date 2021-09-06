@@ -50,6 +50,7 @@ class InteriorNetDPT(pl.LightningModule):
         self.log('train_loss', loss, 
                  on_step=False,
                  on_epoch=True, 
+                 rank_zero_only=True,
                  sync_dist=torch.cuda.device_count() > 1)
         
         # gather scale, shift from computed metrics
@@ -62,6 +63,7 @@ class InteriorNetDPT(pl.LightningModule):
         self.log_dict(metrics,
                       on_step=False,
                       on_epoch=True,
+#                       rank_zero_only=True,
                       sync_dist=torch.cuda.device_count() > 1)
         
         return {'loss': loss, **metrics}
@@ -72,13 +74,15 @@ class InteriorNetDPT(pl.LightningModule):
         loss = SILog(yhat, y)
         self.log('val_loss', loss, 
                  on_step=False,
-                 on_epoch=True, 
+                 on_epoch=True,
+                 rank_zero_only=True,
                  sync_dist=torch.cuda.device_count() > 1)
         
         metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
         self.log_dict(metrics,
                       on_step=False,
                       on_epoch=True,
+#                       rank_zero_only=True,
                       sync_dist=torch.cuda.device_count() > 1)
             
         return {'loss': loss, **metrics}

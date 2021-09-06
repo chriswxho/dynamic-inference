@@ -48,11 +48,10 @@ class InteriorNetDataset(Dataset):
         
         self.videos = np.array(getlines(video_names, subsample))
         
-        if not no_folds:
+        if not subsample:
             fold_size, mod = divmod(len(self.videos), n_folds) # this is not consistent when using -t
 
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments
-            if subsample: return
             if split == 'train':
                 self.videos = np.concatenate([self.videos[:fold_idx*fold_size], 
                                               self.videos[(fold_idx+1)*fold_size:]])
