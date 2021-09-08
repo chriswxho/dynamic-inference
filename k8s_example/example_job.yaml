@@ -8,10 +8,7 @@ spec:
     spec:
       containers:
       - name: chris-dpt
-        image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference
-        env:
-        - name: CHASE_CI
-          value: '1'
+        image: IMAGE
         command: ["stdbuf", "-i0", "-o0", "-e0", "/usr/bin/time", "-v", "bash", "-c"]
         args:
         - >-
@@ -20,7 +17,6 @@ spec:
           -b 16
           -e 200
           -k
-        # command: ['sleep', '3650000000']
         volumeMounts:
         - name: git-repo
           mountPath: /opt/repo
@@ -42,7 +38,7 @@ spec:
       #   nautilus.io/disktype: nvme  
       initContainers:
       - name: init-clone-repo
-        image: gitlab-registry.nrp-nautilus.io/christh9/dynamic-inference/setup
+        image: INIT_IMAGE
         env:
         - name: GIT_USERNAME
           valueFrom:
@@ -59,9 +55,9 @@ spec:
         args:
           - clone
           - --single-branch
-          # - --branch
-          # - intel-impl
           - --recurse-submodules
+          - --branch
+          - main
           - --remote-submodules
           - https://$(GIT_USERNAME):$(GIT_PASSWORD)@gitlab.nrp-nautilus.io/christh9/dynamic-inference
           - /opt/repo/dynamic-inference
