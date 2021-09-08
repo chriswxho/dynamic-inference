@@ -36,6 +36,14 @@ class InteriorNetDPT(pl.LightningModule):
         
         self.val_outputs = None
 #         self.example_input_array = torch.ones((1, 3, net_h, net_w))
+
+        # s,t values
+    
+        self.st = {
+                    10:  (1.2606, -0.45781),
+                    50:  (1.2566, -0.45565), 
+                    100: (1.2534, -0.45245)
+                  }
             
     def forward(self, x):
         return self.model(x)
@@ -49,9 +57,10 @@ class InteriorNetDPT(pl.LightningModule):
                  on_epoch=True, 
                  sync_dist=torch.cuda.device_count() > 1)
         
-        # gather scale, shift from computed metrics
-        # to use for validation later
-        metrics = self.metrics(yhat.detach(), y.detach(), mode='train')
+        s,t = self.st[100]
+        yhat = s * yhat.detach() + t
+        
+        metrics = self.metrics(yhat, y.detach(), mode='train')
         
         self.log_dict(metrics,
                       on_step=False,
@@ -68,6 +77,9 @@ class InteriorNetDPT(pl.LightningModule):
                  on_step=False,
                  on_epoch=True, 
                  sync_dist=torch.cuda.device_count() > 1)
+        
+        s,t = self.st[100]
+        yhat = s * yhat + t
         
         metrics = self.metrics(yhat, y, mode='val')
         self.log_dict(metrics,

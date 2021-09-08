@@ -97,18 +97,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     print('-----------------')
 
     start = time.time()
-    
-    # s,t values
-    
-    st = {
-            10:  (1.2606, -0.45781),
-            50:  (1.2566, -0.45565), 
-            100: (1.2534, -0.45245)
-         }
 
     # model setup
     model = InteriorNetDPT(batch_size, lr, num_epochs, model_path, 
-                           s=st[100][0], t=st[100][1], verbose=other_args['verbose'])
+                           s=1, t=0, verbose=other_args['verbose'])
     
     # logging setup
     logger = TensorBoardLogger(logs_path, 
