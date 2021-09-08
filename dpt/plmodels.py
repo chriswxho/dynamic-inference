@@ -49,7 +49,8 @@ class InteriorNetDPT(pl.LightningModule):
         loss = SILog(yhat, y)
         self.log('train_loss', loss, 
                  on_step=False,
-                 on_epoch=True, 
+                 on_epoch=True,
+                 rank_zero_only=True,
                  sync_dist=torch.cuda.device_count() > 1)
         
         # gather scale, shift from computed metrics
@@ -59,10 +60,17 @@ class InteriorNetDPT(pl.LightningModule):
         self.s.append(metrics.pop('s'))
         self.t.append(metrics.pop('t'))
         
-        self.log_dict(metrics,
-                      on_step=False,
-                      on_epoch=True,
-                      sync_dist=torch.cuda.device_count() > 1)
+        for metric,val in metrics.items():
+            self.log(metric, val,
+                     on_step=False, 
+                     on_epoch=True,
+                     rank_zero_only=True,
+                     sync_dist=torch.cuda.device_count() > 1)
+            
+#         self.log_dict(metrics,
+#                       on_step=False,
+#                       on_epoch=True,
+#                       sync_dist=torch.cuda.device_count() > 1)
         
         return {'loss': loss, **metrics}
     
@@ -73,13 +81,22 @@ class InteriorNetDPT(pl.LightningModule):
         self.log('val_loss', loss, 
                  on_step=False,
                  on_epoch=True, 
+                 rank_zero_only=True,
                  sync_dist=torch.cuda.device_count() > 1)
         
         metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
-        self.log_dict(metrics,
-                      on_step=False,
-                      on_epoch=True,
-                      sync_dist=torch.cuda.device_count() > 1)
+        
+        for metric,val in metrics.items():
+            self.log(metric, val,
+                     on_step=False, 
+                     on_epoch=True,
+                     rank_zero_only=True,
+                     sync_dist=torch.cuda.device_count() > 1)
+            
+#         self.log_dict(metrics,
+#                       on_step=False,
+#                       on_epoch=True,
+#                       sync_dist=torch.cuda.device_count() > 1)
             
         return {'loss': loss, **metrics}
     
@@ -138,15 +155,5 @@ class InteriorNetDPT(pl.LightningModule):
     def on_validation_epoch_start(self):
         if len(self.s) > 0:
             self.s, self.t = torch.tensor(self.s).mean(0), torch.tensor(self.t).mean(0)
-            self.log('s', self.s, 
-                     on_step=False,
-                     on_epoch=True, 
-                     sync_dist=torch.cuda.device_count() > 1)
-            
-            self.log('t', self.t, 
-                     on_step=False,
-                     on_epoch=True, 
-                     sync_dist=torch.cuda.device_count() > 1)
-            
         else:
             raise ValueError('Empty s,t arrays (empty batches)')

@@ -121,13 +121,12 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    model_ckpt = ModelCheckpoint(every_n_epochs=5,
-                                 save_on_train_epoch_end=True,
+    model_ckpt = ModelCheckpoint(every_n_epochs=2,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
     
     # save s,t weights
-    st_ckpt = TensorCheckpoint(every_n_epochs=5)
+    st_ckpt = TensorCheckpoint(every_n_epochs=2)
 
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
@@ -139,7 +138,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  max_epochs=model.hparams.num_epochs,
                                  accelerator='ddp',
                                  logger=logger,
-                                 callbacks=[model_ckpt, st_ckpt] if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
         else:
@@ -147,7 +146,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  gpus=1,
                                  max_epochs=model.hparams.num_epochs,
                                  logger=logger,
-                                 callbacks=[model_ckpt, st_ckpt] if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt] if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:
