@@ -1,18 +1,22 @@
 # dpt main
 -f https://download.pytorch.org/whl/torch_stable.html
-torch==1.8.0+cu111 
+torch==1.8.0+cu111
 -f https://download.pytorch.org/whl/torch_stable.html
 torchvision==0.9.0+cu111
 opencv-python==4.5.2.54
 timm==0.4.5
+
+# dynamic-inference
+pytorch-lightning==1.4.5
+
 # validate_nyu
-scipy
+scipy==1.7.1
+
 # video_inference_common
-requests
-matplotlib
-# other (deeplearning)
-pytorch-lightning
-# other (general use)
-pandas
-jupyter
-jupyterlab
+requests==2.26.0
+matplotlib==3.4.3
+
+# other
+jupyter==1.0.0
+jupyterlab==3.1.10
+pandas==1.3.2
