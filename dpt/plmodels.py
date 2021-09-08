@@ -60,11 +60,19 @@ class InteriorNetDPT(pl.LightningModule):
         self.s.append(metrics.pop('s'))
         self.t.append(metrics.pop('t'))
         
-        self.log_dict(metrics,
-                      on_step=False,
-                      on_epoch=True,
+        for metric,val in metrics.items():
+            self.log(metric, val,
+                     on_step=False, 
+                     on_epoch=True,
+                     rank_zero_only=True,
+                     sync_dist=torch.cuda.device_count() > 1)
+
+        # wait until next release of lightning to update
+#         self.log_dict(metrics,
+#                       on_step=False,
+#                       on_epoch=True,
 #                       rank_zero_only=True,
-                      sync_dist=torch.cuda.device_count() > 1)
+#                       sync_dist=torch.cuda.device_count() > 1)
         
         return {'loss': loss, **metrics}
     
@@ -79,11 +87,13 @@ class InteriorNetDPT(pl.LightningModule):
                  sync_dist=torch.cuda.device_count() > 1)
         
         metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
-        self.log_dict(metrics,
-                      on_step=False,
-                      on_epoch=True,
-#                       rank_zero_only=True,
-                      sync_dist=torch.cuda.device_count() > 1)
+        
+        for metric,val in metrics.items():
+            self.log(metric, val,
+                     on_step=False, 
+                     on_epoch=True,
+                     rank_zero_only=True,
+                     sync_dist=torch.cuda.device_count() > 1)
             
         return {'loss': loss, **metrics}
     

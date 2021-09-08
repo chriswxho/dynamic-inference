@@ -48,8 +48,9 @@ class InteriorNetDataset(Dataset):
         
         self.videos = np.array(getlines(video_names, subsample))
         
+        # not robust to irregular batch sizes
         if not subsample:
-            fold_size, mod = divmod(len(self.videos), n_folds) # this is not consistent when using -t
+            fold_size, mod = divmod(len(self.videos), n_folds)
 
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments
             if split == 'train':

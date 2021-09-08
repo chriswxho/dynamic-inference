@@ -128,13 +128,12 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    model_ckpt = ModelCheckpoint(every_n_epochs=1,
-                                 save_on_train_epoch_end=True,
+    model_ckpt = ModelCheckpoint(every_n_epochs=5,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
     
     # save s,t weights
-    st_ckpt = TensorCheckpoint(every_n_epochs=1)
+    st_ckpt = TensorCheckpoint(every_n_epochs=5)
 
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
@@ -178,8 +177,8 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
 
     finally:
-        print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_path)))))
+        print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         print(f'Final trained weights saved in finetune{exp_idx}.pt')
         torch.save(model.state_dict(), os.path.join(logs_path, f'finetune{exp_idx}.pt'))
 

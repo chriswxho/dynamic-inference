@@ -10,15 +10,11 @@ class TensorCheckpoint(Callback):
         self.every_n_epochs = every_n_epochs
         self.filename = filename
         
-    @rank_zero_only
-    def on_save_checkpoint(self, trainer, pl_module, ckpt):
-        print('callback executed on rank', trainer.global_rank)
-        if (self.every_n_epochs > 0 
-            and ((trainer.current_epoch + 1) % self.every_n_epochs) == 0 
-            and trainer.global_rank == 0):
+    def on_validation_start(self, trainer, pl_module):
+        if (trainer.current_epoch > 0 and
+            (trainer.current_epoch + 1) % self.every_n_epochs == 0 and
+            trainer.is_global_zero):
             
             # save tensors here
             path = os.path.join(trainer.log_dir, f'{self.filename}-{trainer.current_epoch}.pt')
             torch.save({'s': pl_module.s, 't': pl_module.t}, path)
-    
-        return ckpt
