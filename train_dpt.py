@@ -13,16 +13,13 @@ import pandas as pd
 import argparse
 
 import torch
-import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from dpt.plmodels import InteriorNetDPT
-from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
 from util.callbacks import TensorCheckpoint
 from util.gpu_config import get_batch_size
@@ -66,27 +63,6 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         logs_path = os.path.join(k8s_pvc, logs_path)
         os.chdir('/')
 
-    net_w = 640
-    net_h = 480
-
-    normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-    transform = Compose(
-        [
-            Resize(
-                net_w,
-                net_h,
-                resize_target=None,
-                keep_aspect_ratio=True,
-                ensure_multiple_of=32,
-                resize_method="minimal",
-                image_interpolation_method=cv2.INTER_CUBIC,
-            ),
-            normalization,
-            PrepareForNet(),
-        ]
-    )
-
     start = time.time()
 
     batch_size = get_batch_size(batch_size)
@@ -109,10 +85,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     # dataloader setup
     train_dataset = InteriorNetDataset(dataset_path, split='train', 
-                                       transform=transform, subsample=other_args['test'])
+                                       transform='default', subsample=other_args['test'])
     
     val_dataset = InteriorNetDataset(dataset_path, split='val',
-                                     transform=transform, subsample=other_args['test'])
+                                     transform='default', subsample=other_args['test'])
     
     train_loader = DataLoader(train_dataset, 
                               batch_size=model.hparams.batch_size, 
@@ -145,7 +121,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  max_epochs=model.hparams.num_epochs,
                                  accelerator='ddp',
                                  logger=logger,
-                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt] if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
         else:
@@ -153,7 +129,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                                  gpus=1,
                                  max_epochs=model.hparams.num_epochs,
                                  logger=logger,
-                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
+                                 callbacks=[st_ckpt, model_ckpt] if not other_args['test'] else None,
                                  num_sanity_val_steps=0,
                                  progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:
