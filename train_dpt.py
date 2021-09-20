@@ -51,14 +51,14 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     # path settings
     input_path = 'input'
     output_path = 'output_monodepth'
-    model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
+    model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt' if other_args['weights'] == 'nyu' else 'weights/dpt_hybrid-midas-501f0c75.pt'
     dataset_path = 'video_inference_common/resources'
     logs_path = 'train-logs'
 
     if other_args['k8s']:
         input_path = os.path.join(k8s_repo, input_path)
         output_path = os.path.join(k8s_repo, output_path)
-        model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
+        model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt' if other_args['weights'] == 'nyu' else 'dpt-hybrid-midas.pt')
         dataset_path = os.path.join(k8s_repo, dataset_path)
         logs_path = os.path.join(k8s_pvc, logs_path)
         os.chdir('/')
@@ -164,6 +164,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Train the DPT on the InteriorNet dataset.')
+    
+    parser.add_argument(
+        '-w', '--weights', default='base', help='weight type (base|nyu)'
+    )
 
     parser.add_argument(
         '-l', '--lr', default=1e-5, help='learning rate', type=float
