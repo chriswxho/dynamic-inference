@@ -1,6 +1,7 @@
 import os
 import re
 import itertools
+import cv2
 import numpy as np
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
@@ -74,9 +75,8 @@ class InteriorNetDataset(Dataset):
         self.videos = np.array(getlines(video_names, subsample))
         
         # not robust to irregular batch sizes
-        if not subsample:
+        if split != 'test' and not subsample and not no_folds:
             fold_size, mod = divmod(len(self.videos), n_folds)
-
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments
             if split == 'train':
                 self.videos = np.concatenate([self.videos[:fold_idx*fold_size], 
