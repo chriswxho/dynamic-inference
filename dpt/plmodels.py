@@ -154,8 +154,10 @@ class InteriorNetDPT(pl.LightningModule):
 
         self.val_outputs = None
             
-    def on_validation_epoch_start(self):
+    def on_validation_start(self):
         if len(self.s) > 0:
+            print('averaging tensors')
+            print(len(self.s))
             self.s, self.t = torch.tensor(self.s).mean(0), torch.tensor(self.t).mean(0)
         else:
             raise ValueError('Empty s,t arrays (empty batches)')

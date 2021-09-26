@@ -99,12 +99,12 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    model_ckpt = ModelCheckpoint(every_n_epochs=5,
+    model_ckpt = ModelCheckpoint(every_n_epochs=2,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
     
     # save s,t weights
-    st_ckpt = TensorCheckpoint(every_n_epochs=5)
+    st_ckpt = TensorCheckpoint(every_n_epochs=2)
 
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
@@ -115,7 +115,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
                              gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
-                             accelerator='ddp',
+#                              accelerator='ddp',
                              logger=logger,
                              callbacks=[st_ckpt, model_ckpt] if do_callbacks else None,
                              num_sanity_val_steps=0,
