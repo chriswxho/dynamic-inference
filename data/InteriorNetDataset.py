@@ -1,9 +1,12 @@
 import os
 import re
 import itertools
+import cv2
 import numpy as np
 from torch.utils.data import Dataset
+from torchvision.transforms import Compose
 
+from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from video_inference_common.video_inference.datasets import interiornet
 
 def getlines(files: [str], subsample):
@@ -38,7 +41,30 @@ class InteriorNetDataset(Dataset):
         
         assert 0 <= fold_idx <= n_folds
         
-        self.transform = transform
+        if transform == 'default':
+            net_w = 640
+            net_h = 480
+
+            normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+
+            self.transform = Compose(
+                [
+                    Resize(
+                        net_w,
+                        net_h,
+                        resize_target=None,
+                        keep_aspect_ratio=True,
+                        ensure_multiple_of=32,
+                        resize_method="minimal",
+                        image_interpolation_method=cv2.INTER_CUBIC,
+                    ),
+                    normalization,
+                    PrepareForNet(),
+                ]
+            )
+        else:
+            self.transform = transform
+        
         self.path = dataset_path
         self.subsample = subsample
         
@@ -48,9 +74,9 @@ class InteriorNetDataset(Dataset):
         
         self.videos = np.array(getlines(video_names, subsample))
         
-        if not subsample:
-            fold_size, mod = divmod(len(self.videos), n_folds) # this is not consistent when using -t
-
+        # not robust to irregular batch sizes
+        if split != 'test' and not subsample and not no_folds:
+            fold_size, mod = divmod(len(self.videos), n_folds)
             assert mod == 0 # I'm sure there's a better way of handling this but I want experiments
             if split == 'train':
                 self.videos = np.concatenate([self.videos[:fold_idx*fold_size], 

@@ -1,4 +1,5 @@
 import os
+import glob
 import time
 from datetime import timedelta
 import cv2
@@ -8,14 +9,12 @@ import argparse
 
 import torch
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from dpt.plmodels import InteriorNetDPT
-from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
 from util.callbacks import TensorCheckpoint
 from util.gpu_config import get_batch_size
@@ -47,38 +46,17 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     # path settings
     input_path = 'input'
     output_path = 'output_monodepth'
-    model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt'
+    model_path = 'weights/dpt_hybrid_nyu-2ce69ec7.pt' if other_args['weights'] == 'nyu' else 'weights/dpt_hybrid-midas-501f0c75.pt'
     dataset_path = 'video_inference_common/resources'
     logs_path = 'train-logs'
 
     if other_args['k8s']:
         input_path = os.path.join(k8s_repo, input_path)
         output_path = os.path.join(k8s_repo, output_path)
-        model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt')
+        model_path = os.path.join(k8s_pvc, 'dpt-hybrid-nyu.pt' if other_args['weights'] == 'nyu' else 'dpt-hybrid-midas.pt')
         dataset_path = os.path.join(k8s_repo, dataset_path)
         logs_path = os.path.join(k8s_pvc, logs_path)
         os.chdir('/')
-
-    net_w = 640
-    net_h = 480
-
-    normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-    transform = Compose(
-        [
-            Resize(
-                net_w,
-                net_h,
-                resize_target=None,
-                keep_aspect_ratio=True,
-                ensure_multiple_of=32,
-                resize_method="minimal",
-                image_interpolation_method=cv2.INTER_CUBIC,
-            ),
-            normalization,
-            PrepareForNet(),
-        ]
-    )
 
     start = time.time()
 
@@ -102,10 +80,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 
     # dataloader setup
     train_dataset = InteriorNetDataset(dataset_path, split='train', 
-                                       transform=transform, subsample=other_args['test'])
+                                       transform='default', subsample=other_args['test'])
     
     val_dataset = InteriorNetDataset(dataset_path, split='val',
-                                     transform=transform, subsample=other_args['test'])
+                                     transform='default', subsample=other_args['test'])
     
     train_loader = DataLoader(train_dataset, 
                               batch_size=model.hparams.batch_size, 
@@ -121,39 +99,32 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
                             num_workers=4*torch.cuda.device_count() if torch.cuda.is_available() else 0)
 
     # checkpointing
-    model_ckpt = ModelCheckpoint(every_n_epochs=2,
+    model_ckpt = ModelCheckpoint(every_n_epochs=5,
                                  save_top_k=-1,
                                  filename='dpt-finetune-{epoch}')
     
     # save s,t weights
-    st_ckpt = TensorCheckpoint(every_n_epochs=2)
+    st_ckpt = TensorCheckpoint(every_n_epochs=5)
 
 
     print(f'Created datasets in {timedelta(seconds=round(time.time()-start,2))}')
     
+    do_callbacks = not (other_args['test'] or other_args['nockpt'])
+    
     if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
-                                 gpus=torch.cuda.device_count(), 
-                                 max_epochs=model.hparams.num_epochs,
-                                 accelerator='ddp',
-                                 logger=logger,
-                                 callbacks=[st_ckpt, model_ckpt], # if not other_args['test'] else None,
-                                 num_sanity_val_steps=0,
-                                 progress_bar_refresh_rate=None if other_args['verbose'] else 0)
-        else:
-            trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
-                                 gpus=1,
-                                 max_epochs=model.hparams.num_epochs,
-                                 logger=logger,
-                                 callbacks=[st_ckpt, model_ckpt] if not other_args['test'] else None,
-                                 num_sanity_val_steps=0,
-                                 progress_bar_refresh_rate=None if other_args['verbose'] else 0)
+        trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
+                             gpus=torch.cuda.device_count(), 
+                             max_epochs=model.hparams.num_epochs,
+                             accelerator='ddp',
+                             logger=logger,
+                             callbacks=[st_ckpt, model_ckpt] if do_callbacks else None,
+                             num_sanity_val_steps=0,
+                             progress_bar_refresh_rate=None if other_args['verbose'] else 0)
     else:
         trainer = pl.Trainer(max_epochs=1, logger=logger)
-    
+        
     print('Training')
-    
+
     try:
         cv2.setNumThreads(0) # disable cv2 threading to avoid deadlocks
         
@@ -170,8 +141,8 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         print(f'Training completed in {timedelta(seconds=round(time.time()-start,2))}')
 
     finally:
-        print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         exp_idx = len(list(filter(lambda f: '.pt' in f, os.listdir(os.path.join(logs_path)))))
+        print(f'Training checkpoints and logs are saved in {trainer.log_dir}')
         print(f'Final trained weights saved in finetune{exp_idx}.pt')
         torch.save(model.state_dict(), os.path.join(logs_path, f'finetune{exp_idx}.pt'))
         logger.save()
@@ -180,6 +151,10 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Train the DPT on the InteriorNet dataset.')
+    
+    parser.add_argument(
+        '-w', '--weights', default='base', help='weight type (base|nyu)'
+    )
 
     parser.add_argument(
         '-l', '--lr', default=1e-5, help='learning rate', type=float
@@ -195,6 +170,10 @@ if __name__ == '__main__':
     
     parser.add_argument(
         '-t', '--test', action='store_true'
+    )
+    
+    parser.add_argument(
+        '-n', '--nockpt', action='store_true'
     )
     # trains on the first 20 frames of this video if test=True:
     # 3FO4IW2QC9U7_original_1_1

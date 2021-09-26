@@ -108,20 +108,21 @@ class InteriorNetDPT(pl.LightningModule):
                           lr=self.hparams.lr)
     
     def training_epoch_end(self, epoch_outputs):
-        res = Counter()
-        for out in epoch_outputs:
-            res += out
-        self.print(f'--- Epoch {self.current_epoch} training ---')
-        for name, val in res.items():
-            if name == 'loss':
-                name = 'train_loss'
-                val = val.item()
-            if math.isinf(val):
-                self.print(f'{name}: {val}')
-                continue
-            self.print(f'{name}: {round_sig(val / len(epoch_outputs), 4)}')
-        self.print('-'*25)
-        self.logger.log_graph(self)
+        if 'interactive' not in self.kwargs or not self.kwargs['interactive']:
+            res = Counter()
+            for out in epoch_outputs:
+                res += out
+            self.print(f'--- Epoch {self.current_epoch} training ---')
+            for name, val in res.items():
+                if name == 'loss':
+                    name = 'train_loss'
+                    val = val.item()
+                if math.isinf(val):
+                    self.print(f'{name}: {val}')
+                    continue
+                self.print(f'{name}: {round_sig(val / len(epoch_outputs), 4)}')
+            self.print('-'*25)
+            self.logger.log_graph(self)
         
     def validation_epoch_end(self, epoch_outputs):
         self.val_outputs = epoch_outputs
@@ -131,24 +132,25 @@ class InteriorNetDPT(pl.LightningModule):
         
     def on_train_epoch_start(self):
         self.s, self.t = [], []
-        if 'verbose' in self.kwargs and not self.kwargs['verbose']:
+        if 'interactive' not in self.kwargs or not self.kwargs['interactive']:
             self.print(f'Epoch {self.current_epoch}')
             
     def on_train_epoch_end(self):
-        res = Counter()
-        for out in self.val_outputs:
-            res += out
-        self.print(f'--- Epoch {self.current_epoch} validation ---')
-        for name, val in res.items():
-            if name == 'loss': 
-                name = 'val_loss'
-                val = val.item()
-            if math.isinf(val):
-                self.print(f'{name}: {val}')
-                continue
-            self.print(f'{name}: {round_sig(val / len(self.val_outputs), 4)}')
-        self.print('-'*25)
-        self.logger.log_graph(self)
+        if 'interactive' not in self.kwargs or not self.kwargs['interactive']:
+            res = Counter()
+            for out in self.val_outputs:
+                res += out
+            self.print(f'--- Epoch {self.current_epoch} validation ---')
+            for name, val in res.items():
+                if name == 'loss': 
+                    name = 'val_loss'
+                    val = val.item()
+                if math.isinf(val):
+                    self.print(f'{name}: {val}')
+                    continue
+                self.print(f'{name}: {round_sig(val / len(self.val_outputs), 4)}')
+            self.print('-'*25)
+            self.logger.log_graph(self)
 
         self.val_outputs = None
             
