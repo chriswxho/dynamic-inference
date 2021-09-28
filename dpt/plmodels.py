@@ -46,15 +46,7 @@ class InteriorNetDPT(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
-        loss = SILog(yhat, y)
-        self.log('train_loss', loss, 
-                 on_step=False,
-                 on_epoch=True,
-                 rank_zero_only=True,
-                 sync_dist=torch.cuda.device_count() > 1)
         
-        # gather scale, shift from computed metrics
-        # to use for validation later
         metrics = self.metrics(yhat.detach(), y.detach())
         
         self.s.append(metrics.pop('s'))
@@ -66,6 +58,16 @@ class InteriorNetDPT(pl.LightningModule):
                      on_epoch=True,
                      rank_zero_only=True,
                      sync_dist=torch.cuda.device_count() > 1)
+        
+        loss = SILog(yhat, y)
+        self.log('train_loss', loss, 
+                 on_step=False,
+                 on_epoch=True,
+                 rank_zero_only=True,
+                 sync_dist=torch.cuda.device_count() > 1)
+        
+        # gather scale, shift from computed metrics
+        # to use for validation later
             
 #         self.log_dict(metrics,
 #                       on_step=False,
@@ -77,12 +79,6 @@ class InteriorNetDPT(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
-        loss = SILog(yhat, y)
-        self.log('val_loss', loss, 
-                 on_step=False,
-                 on_epoch=True, 
-                 rank_zero_only=True,
-                 sync_dist=torch.cuda.device_count() > 1)
         
         metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
         
@@ -97,6 +93,13 @@ class InteriorNetDPT(pl.LightningModule):
 #                       on_step=False,
 #                       on_epoch=True,
 #                       sync_dist=torch.cuda.device_count() > 1)
+        
+        loss = SILog(yhat, y)
+        self.log('val_loss', loss, 
+                 on_step=False,
+                 on_epoch=True, 
+                 rank_zero_only=True,
+                 sync_dist=torch.cuda.device_count() > 1)
             
         return {'loss': loss, **metrics}
     
@@ -156,8 +159,6 @@ class InteriorNetDPT(pl.LightningModule):
             
     def on_validation_start(self):
         if len(self.s) > 0:
-            print('averaging tensors')
-            print(len(self.s))
-            self.s, self.t = torch.tensor(self.s).mean(0), torch.tensor(self.t).mean(0)
+            self.s, self.t = torch.tensor(self.s).type_as(self.s[-1]).mean(0), torch.tensor(self.t).type_as(self.t[-1]).mean(0)
         else:
             raise ValueError('Empty s,t arrays (empty batches)')
