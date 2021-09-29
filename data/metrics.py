@@ -70,8 +70,8 @@ class DepthMetrics:
             acc = torch.zeros_like(prediction_aligned, dtype=torch.float)
 
             acc[mask == 1] = torch.max(
-                prediction_aligned[mask == 1] / target[mask == 1],
-                target[mask == 1] / prediction_aligned[mask == 1],
+                torch.abs(prediction_aligned[mask == 1] / target[mask == 1]),
+                torch.abs(target[mask == 1] / prediction_aligned[mask == 1]),
             ).float()
 
             acc[mask == 1] = (acc[mask == 1] < (self.threshold if delta == 0 

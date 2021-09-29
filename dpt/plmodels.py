@@ -52,6 +52,8 @@ class InteriorNetDPT(pl.LightningModule):
         self.s.append(metrics.pop('s'))
         self.t.append(metrics.pop('t'))
         
+        self.print({'s': self.s[-1], 't': self.t[-1]})
+        
         for metric,val in metrics.items():
             self.log(metric, val,
                      on_step=False, 
@@ -94,7 +96,7 @@ class InteriorNetDPT(pl.LightningModule):
 #                       on_epoch=True,
 #                       sync_dist=torch.cuda.device_count() > 1)
         
-        loss = SILog(yhat, y)
+        loss = SILog(self.s * yhat + self.t, y)
         self.log('val_loss', loss, 
                  on_step=False,
                  on_epoch=True, 
