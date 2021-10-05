@@ -71,7 +71,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     start = time.time()
 
     # model setup
-    model = InteriorNetDPT(batch_size, lr, num_epochs, model_path, verbose=other_args['verbose'])
+    model = InteriorNetDPT(batch_size, lr * torch.cuda.device_count(), num_epochs, model_path, verbose=other_args['verbose'])
     
     # logging setup
     logger = TensorBoardLogger(logs_path, 
