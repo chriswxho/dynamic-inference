@@ -1,5 +1,6 @@
 FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
 ENV DEBIAN_FRONTEND=noninteractive
+ENV HOROVOD_WITH_PYTORCH=1
 COPY packages.txt packages.txt
 RUN apt-get update
 RUN xargs -a packages.txt apt-get install -y

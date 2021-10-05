@@ -1,6 +1,7 @@
 from collections import Counter
 from itertools import chain
 
+import os
 import math
 import numpy as np
 import torch
@@ -47,12 +48,12 @@ class InteriorNetDPT(pl.LightningModule):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
         
-        metrics = self.metrics(yhat.detach(), y.detach())
+        metrics = self.metrics(yhat.detach(), y.detach(), (1.2534, -0.45245))
         
-        self.s.append(metrics.pop('s'))
-        self.t.append(metrics.pop('t'))
+#         self.s.append(metrics.pop('s'))
+#         self.t.append(metrics.pop('t'))
         
-        self.print({'s': self.s[-1], 't': self.t[-1]})
+#         self.print({'s': self.s[-1], 't': self.t[-1]})
         
         for metric,val in metrics.items():
             self.log(metric, val,
@@ -61,7 +62,7 @@ class InteriorNetDPT(pl.LightningModule):
                      rank_zero_only=True,
                      sync_dist=torch.cuda.device_count() > 1)
         
-        loss = SILog(yhat, y)
+        loss = SILog(1.2534 * yhat - 0.45245, y)
         self.log('train_loss', loss, 
                  on_step=False,
                  on_epoch=True,
@@ -82,7 +83,7 @@ class InteriorNetDPT(pl.LightningModule):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
         
-        metrics = self.metrics(yhat, y, (self.s, self.t) if type(self.s) is torch.Tensor else None)
+        metrics = self.metrics(yhat, y, (1.2534, -0.45245))
         
         for metric,val in metrics.items():
             self.log(metric, val,
@@ -96,7 +97,7 @@ class InteriorNetDPT(pl.LightningModule):
 #                       on_epoch=True,
 #                       sync_dist=torch.cuda.device_count() > 1)
         
-        loss = SILog(self.s * yhat + self.t, y)
+        loss = SILog(1.2534 * yhat - 0.45245, y)
         self.log('val_loss', loss, 
                  on_step=False,
                  on_epoch=True, 
@@ -159,8 +160,18 @@ class InteriorNetDPT(pl.LightningModule):
 
         self.val_outputs = None
             
-    def on_validation_start(self):
-        if len(self.s) > 0:
-            self.s, self.t = torch.tensor(self.s).type_as(self.s[-1]).mean(0), torch.tensor(self.t).type_as(self.t[-1]).mean(0)
-        else:
-            raise ValueError('Empty s,t arrays (empty batches)')
+#     def on_validation_start(self):
+#         if len(self.s) > 0:
+#             self.s, self.t = torch.tensor(self.s).type_as(self.s[-1]).mean(0), torch.tensor(self.t).type_as(self.t[-1]).mean(0)
+#         else:
+#             raise ValueError('Empty s,t arrays (empty batches)')
+            
+#     def on_after_backward(self):
+#         pvcpath = '/christh9-pvc/train-logs/finetune/grads'
+#         if 'grads' not in os.listdir(os.path.dirname(pvcpath)):
+#             os.mkdir(pvcpath)
+            
+#         grads = {}
+#         for i,param in enumerate(self.model.parameters()):
+#             grads[i] = param.grad
+#         torch.save(grads, os.path.join(pvcpath,f'grads-single-{self.global_rank}.pt'))

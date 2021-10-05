@@ -12,6 +12,7 @@ requests
 matplotlib
 # other (deeplearning)
 pytorch-lightning
+horovod[pytorch]
 # other (general use)
 pandas
 jupyter

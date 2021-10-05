@@ -3,3 +3,6 @@ python3-pip
 time
 vim
 git
+g++
+cmake
+protobuf-compiler

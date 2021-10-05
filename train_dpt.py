@@ -19,8 +19,8 @@ from data.InteriorNetDataset import InteriorNetDataset
 from util.callbacks import TensorCheckpoint
 from util.gpu_config import get_batch_size
 
-torch.manual_seed(0)
-np.random.seed(0)
+# torch.manual_seed(0)
+# np.random.seed(0)
 
     
 def train(lr: float, batch_size: int, num_epochs: int, other_args):
@@ -39,6 +39,11 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
     verbose: if True, gives live loading bar updates, otherwise prints last epoch #
     '''
 
+    
+    # try debugging with cpu
+    
+    pl.utilities.seed.seed_everything(seed=0, workers=torch.cuda.is_available())
+    
     # k8s paths
     k8s_repo = r'opt/repo/dynamic-inference'
     k8s_pvc = r'christh9-pvc'
@@ -115,7 +120,6 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
                              gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
-                             accelerator='horovod',
                              logger=logger,
                              callbacks=[st_ckpt, model_ckpt] if do_callbacks else None,
                              num_sanity_val_steps=0,
