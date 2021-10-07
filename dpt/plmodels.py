@@ -35,8 +35,8 @@ class InteriorNetDPT(pl.LightningModule):
         self.metrics = DepthMetrics()
         self.kwargs = kwargs
         
-        self.s = []
-        self.t = []
+        self.s = 1581.6136
+        self.t = 0.9938
         
         self.val_outputs = None
 #         self.example_input_array = torch.ones((1, 3, net_h, net_w))
@@ -48,7 +48,7 @@ class InteriorNetDPT(pl.LightningModule):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
         
-        metrics = self.metrics(yhat.detach(), y.detach(), (1.2534, -0.45245))
+        metrics = self.metrics(yhat.detach(), y.detach(), (self.s, self.t))
         
 #         self.s.append(metrics.pop('s'))
 #         self.t.append(metrics.pop('t'))
@@ -62,7 +62,7 @@ class InteriorNetDPT(pl.LightningModule):
                      rank_zero_only=True,
                      sync_dist=torch.cuda.device_count() > 1)
         
-        loss = SILog(1.2534 * yhat - 0.45245, y)
+        loss = SILog(self.s * yhat + self.t, y)
         self.log('train_loss', loss, 
                  on_step=False,
                  on_epoch=True,
@@ -83,7 +83,7 @@ class InteriorNetDPT(pl.LightningModule):
         x, y = batch['image'], batch['depth']
         yhat = self.model(x)
         
-        metrics = self.metrics(yhat, y, (1.2534, -0.45245))
+        metrics = self.metrics(yhat, y, (self.s, self.t))
         
         for metric,val in metrics.items():
             self.log(metric, val,
@@ -97,7 +97,7 @@ class InteriorNetDPT(pl.LightningModule):
 #                       on_epoch=True,
 #                       sync_dist=torch.cuda.device_count() > 1)
         
-        loss = SILog(1.2534 * yhat - 0.45245, y)
+        loss = SILog(self.s * yhat + self.t, y)
         self.log('val_loss', loss, 
                  on_step=False,
                  on_epoch=True, 
@@ -137,7 +137,7 @@ class InteriorNetDPT(pl.LightningModule):
         self.logger.log_hyperparams(self.hparams)
         
     def on_train_epoch_start(self):
-        self.s, self.t = [], []
+#         self.s, self.t = [], []
         if 'interactive' not in self.kwargs or not self.kwargs['interactive']:
             self.print(f'Epoch {self.current_epoch}')
             
@@ -166,12 +166,13 @@ class InteriorNetDPT(pl.LightningModule):
 #         else:
 #             raise ValueError('Empty s,t arrays (empty batches)')
             
-#     def on_after_backward(self):
-#         pvcpath = '/christh9-pvc/train-logs/finetune/grads'
-#         if 'grads' not in os.listdir(os.path.dirname(pvcpath)):
-#             os.mkdir(pvcpath)
+    def on_after_backward(self):
+        pvcpath = '/christh9-pvc/train-logs/finetune/grads'
+        if 'grads' not in os.listdir(os.path.dirname(pvcpath)):
+            os.mkdir(pvcpath)
             
-#         grads = {}
-#         for i,param in enumerate(self.model.parameters()):
-#             grads[i] = param.grad
+        grads = {}
+        for i,param in enumerate(self.model.parameters()):
+            grads[i] = param.grad
+        torch.save(grads, os.path.join(pvcpath,f'grads-single.pt'))
 #         torch.save(grads, os.path.join(pvcpath,f'grads-single-{self.global_rank}.pt'))

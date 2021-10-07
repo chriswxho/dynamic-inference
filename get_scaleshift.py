@@ -54,36 +54,15 @@ def get_scale_and_shift(args):
         logs_path = os.path.join(k8s_pvc, logs_path)
         os.chdir('/')
 
-    net_w = 640
-    net_h = 480
-
-    normalization = NormalizeImage(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-    transform = Compose(
-        [
-            Resize(
-                net_w,
-                net_h,
-                resize_target=None,
-                keep_aspect_ratio=True,
-                ensure_multiple_of=32,
-                resize_method="minimal",
-                image_interpolation_method=cv2.INTER_CUBIC,
-            ),
-            normalization,
-            PrepareForNet(),
-        ]
-    )
-
     start = time.time()
     
     # model setup
-    model = InteriorNetDPT(1, 1e-4, 1, model_path, s=0.000305, t=0.1378)
+    model = InteriorNetDPT(1, 0, 0, model_path)
     model.freeze()
     model.cuda()
     
     # dataset setup
-    dataset = InteriorNetDataset(dataset_path, split='train', transform=transform, no_folds=True)
+    dataset = InteriorNetDataset(dataset_path, split='train', transform='default', no_folds=True)
     
     assert 0 < args['ratio'] <= 1
     
@@ -113,7 +92,7 @@ def get_scale_and_shift(args):
     df = pd.DataFrame({ 'scale': [scale], 
                         'shift': [shift] })
     
-    dest_path = os.path.join(logs_path, f"st_{args['ratio']}") 
+    dest_path = os.path.join(logs_path, f"interiornet-nyu-st_{args['ratio']}") 
     print(f'Results saved in {dest_path}')
     df.to_csv(dest_path)
     

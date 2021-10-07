@@ -120,6 +120,7 @@ def train(lr: float, batch_size: int, num_epochs: int, other_args):
         trainer = pl.Trainer(resume_from_checkpoint=path if (path := other_args['checkpoint']) else None,
                              gpus=torch.cuda.device_count(), 
                              max_epochs=model.hparams.num_epochs,
+#                              accelerator='ddp',
                              logger=logger,
                              callbacks=[st_ckpt, model_ckpt] if do_callbacks else None,
                              num_sanity_val_steps=0,
