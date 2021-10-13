@@ -1,7 +1,6 @@
 from collections import Counter
 from itertools import chain
 
-import os
 import math
 import numpy as np
 import torch
@@ -35,8 +34,8 @@ class InteriorNetDPT(pl.LightningModule):
         self.metrics = DepthMetrics()
         self.kwargs = kwargs
         
-        self.s = 1581.6136
-        self.t = 0.9938
+        self.s = 1000
+        self.t = 0
         
         self.val_outputs = None
 #         self.example_input_array = torch.ones((1, 3, net_h, net_w))
@@ -108,6 +107,7 @@ class InteriorNetDPT(pl.LightningModule):
     
     def configure_optimizers(self):
         return optim.Adam([
+#                             {'params': filter(lambda p: p.requires_grad, self.model.parameters())},
                             {'params': filter(lambda p: p.requires_grad, self.model.pretrained.parameters())},
                             {'params': self.model.scratch.parameters(), 'lr': self.hparams.lr * 10}
                           ], 
@@ -120,8 +120,8 @@ class InteriorNetDPT(pl.LightningModule):
                 res += out
             self.print(f'--- Epoch {self.current_epoch} training ---')
             for name, val in res.items():
-                if name == 'loss':
-                    name = 'train_loss'
+                name = 'train_' + name
+                if type(val) is torch.Tensor:
                     val = val.item()
                 if math.isinf(val):
                     self.print(f'{name}: {val}')
@@ -148,8 +148,8 @@ class InteriorNetDPT(pl.LightningModule):
                 res += out
             self.print(f'--- Epoch {self.current_epoch} validation ---')
             for name, val in res.items():
-                if name == 'loss': 
-                    name = 'val_loss'
+                name = 'val_' + name
+                if type(val) is torch.Tensor:
                     val = val.item()
                 if math.isinf(val):
                     self.print(f'{name}: {val}')
@@ -165,14 +165,3 @@ class InteriorNetDPT(pl.LightningModule):
 #             self.s, self.t = torch.tensor(self.s).type_as(self.s[-1]).mean(0), torch.tensor(self.t).type_as(self.t[-1]).mean(0)
 #         else:
 #             raise ValueError('Empty s,t arrays (empty batches)')
-            
-    def on_after_backward(self):
-        pvcpath = '/christh9-pvc/train-logs/finetune/grads'
-        if 'grads' not in os.listdir(os.path.dirname(pvcpath)):
-            os.mkdir(pvcpath)
-            
-        grads = {}
-        for i,param in enumerate(self.model.parameters()):
-            grads[i] = param.grad
-        torch.save(grads, os.path.join(pvcpath,f'grads-single.pt'))
-#         torch.save(grads, os.path.join(pvcpath,f'grads-single-{self.global_rank}.pt'))
