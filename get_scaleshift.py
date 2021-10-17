@@ -15,6 +15,7 @@ import argparse
 
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 import pytorch_lightning as pl
@@ -23,15 +24,19 @@ from dpt.plmodels import InteriorNetDPT
 from dpt.transforms import Resize, NormalizeImage, PrepareForNet
 from data.InteriorNetDataset import InteriorNetDataset
 
+from util.gpu_config import get_batch_size
+
 torch.manual_seed(0)
 np.random.seed(0)
 
 
 def compute_scale_and_shift(disp):
-    mask = ~torch.isnan(disp)
-    shift = torch.median(disp[mask])
-    scale = (disp[mask] - shift).abs().mean()
-    return scale, shift
+    scale, shift = [],[]
+    for im in disp:
+        mask = ~torch.isnan(im)
+        shift.append(torch.median(im[mask]))
+        scale.append((im[mask] - shift[-1]).abs().mean())
+    return torch.tensor(scale), torch.tensor(shift)
     
 def get_scale_and_shift(args):
     
@@ -63,6 +68,7 @@ def get_scale_and_shift(args):
     
     # dataset setup
     dataset = InteriorNetDataset(dataset_path, split='train', transform='default', no_folds=True)
+    loader = DataLoader(dataset, batch_size=get_batch_size(None))
     
     assert 0 < args['ratio'] <= 1
     
@@ -74,13 +80,21 @@ def get_scale_and_shift(args):
     shift = []
     
     with torch.no_grad():
-        for idx in tqdm(idxs, ncols=40):
-            batch = dataset[idx]
-            im, depth = torch.from_numpy(batch['image']).unsqueeze(0).cuda(), torch.from_numpy(batch['depth']).cuda()
+        for batch in tqdm(loader, ncols=40):
+            im, depth = batch['image'].cuda(), batch['depth'].cuda()
             sd, td = compute_scale_and_shift(depth)
-            sp, tp = compute_scale_and_shift(model(im).squeeze())
-            scale.append(F.relu(sd/sp).item())
-            shift.append((td - tp * scale[-1]).item())
+            sp, tp = compute_scale_and_shift(model(im))
+            scale_b = F.relu(sd/sp)
+            scale.extend(scale_b.tolist())
+            shift.extend((td - tp * scale_b).tolist())
+            
+#         for idx in tqdm(idxs, ncols=40):
+#             batch = dataset[idx]
+#             im, depth = torch.from_numpy(batch['image']).unsqueeze(0).cuda(), torch.from_numpy(batch['depth']).cuda()
+#             sd, td = compute_scale_and_shift(depth)
+#             sp, tp = compute_scale_and_shift(model(im).squeeze())
+#             scale.append(F.relu(sd/sp).item())
+#             shift.append((td - tp * scale[-1]).item())
         
     scale = torch.tensor(scale).mean().item()
     shift = torch.tensor(shift).mean().item()
