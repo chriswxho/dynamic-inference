@@ -61,14 +61,16 @@ def get_scale_and_shift(args):
 
     start = time.time()
     
+    print('Loading model')
     # model setup
     model = InteriorNetDPT(1, 0, 0, model_path)
     model.freeze()
     model.cuda()
+    print(f'Loaded model in {round(time.time()-start,2)}s')
     
     # dataset setup
     dataset = InteriorNetDataset(dataset_path, split='train', transform='default', no_folds=True)
-    loader = DataLoader(dataset, batch_size=get_batch_size(None))
+    loader = DataLoader(dataset, batch_size=16)
     
     assert 0 < args['ratio'] <= 1
     
@@ -80,7 +82,8 @@ def get_scale_and_shift(args):
     shift = []
     
     with torch.no_grad():
-        for batch in tqdm(loader, ncols=40):
+        for i,batch in enumerate(loader):
+            print(i+1)
             im, depth = batch['image'].cuda(), batch['depth'].cuda()
             sd, td = compute_scale_and_shift(depth)
             sp, tp = compute_scale_and_shift(model(im))

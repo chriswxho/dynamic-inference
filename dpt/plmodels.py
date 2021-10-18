@@ -34,7 +34,7 @@ class InteriorNetDPT(pl.LightningModule):
         self.metrics = DepthMetrics()
         self.kwargs = kwargs
         
-        self.s = 1000
+        self.s = 1
         self.t = 0
         
         self.val_outputs = None
