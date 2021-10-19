@@ -3,7 +3,10 @@ import matplotlib.pyplot as plt
 
 from dpt.vit import get_mean_attention_map
 
-def visualize_attention(input, model, prediction, model_type):
+def visualize_attention(input, model, prediction, model_type, size):
+    
+    plt.rcParams["figure.figsize"] = size
+    
     input = (input + 1.0)/2.0
 
     attn1 = model.pretrained.attention["attn_1"]
@@ -33,24 +36,24 @@ def visualize_attention(input, model, prediction, model_type):
 
     plt.subplot(346),
     plt.imshow(get_mean_attention_map(attn2, 1, input.shape))
-    plt.title(f"Layer {h[1]}", fontsize=8)
+    plt.title(f"Layer {h[1]}")
     plt.axis("off"),
 
     plt.subplot(347),
     plt.imshow(get_mean_attention_map(attn3, 1, input.shape))
-    plt.title(f"Layer {h[2]}", fontsize=8)
+    plt.title(f"Layer {h[2]}")
     plt.axis("off"),
 
 
     plt.subplot(348),
     plt.imshow(get_mean_attention_map(attn4, 1, input.shape))
-    plt.title(f"Layer {h[3]}", fontsize=8)
+    plt.title(f"Layer {h[3]}")
     plt.axis("off"),
 
 
     # lower right
     plt.subplot(3,4,9), plt.imshow(get_mean_attention_map(attn1, -1, input.shape))
-    plt.ylabel("Lower right corner", fontsize=8)
+    plt.ylabel("Lower right corner")
     gc = plt.gca()
     gc.axes.xaxis.set_ticklabels([])
     gc.axes.yaxis.set_ticklabels([])
@@ -60,8 +63,11 @@ def visualize_attention(input, model, prediction, model_type):
     plt.subplot(3,4,10), plt.imshow(get_mean_attention_map(attn2, -1, input.shape)), plt.axis("off")
     plt.subplot(3,4,11), plt.imshow(get_mean_attention_map(attn3, -1, input.shape)), plt.axis("off")
     plt.subplot(3,4,12), plt.imshow(get_mean_attention_map(attn4, -1, input.shape)), plt.axis("off")
+
     plt.tight_layout()
     plt.show()
+    
+    plt.rcParams["figure.figsize"] = plt.rcParamsDefault["figure.figsize"]
 
 def round_sig(x, sig=2):
     if x == 0:

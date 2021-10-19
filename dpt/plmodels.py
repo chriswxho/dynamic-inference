@@ -21,10 +21,10 @@ class InteriorNetDPT(pl.LightningModule):
                         path=model_path,
                         scale=s,
                         shift=t,
-                        invert=True,
+                        invert=kwargs['invert'] if 'invert' in kwargs else True,
                         backbone="vitb_rn50_384",
-                        non_negative=True,
-                        enable_attention_hooks=False,
+                        non_negative=kwargs['non_negative'] if 'non_negative' in kwargs else True,
+                        enable_attention_hooks=kwargs['enable_attention_hooks'] if 'enable_attention_hooks' in kwargs else False,
                      )
         
         self.num_epochs = num_epochs
@@ -36,6 +36,9 @@ class InteriorNetDPT(pl.LightningModule):
         
         self.s = 1
         self.t = 0
+        
+        # s: 1570.5389404296875                                                           
+        # t: 0.9992130994796753
         
         self.val_outputs = None
 #         self.example_input_array = torch.ones((1, 3, net_h, net_w))
