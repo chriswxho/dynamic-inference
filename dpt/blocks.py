@@ -42,11 +42,11 @@ def _make_encoder(
         scratch = _make_scratch(
             [256, 512, 768, 768], features, groups=groups, expand=expand
         )  # ViT-H/16 - 85.0% Top1 (backbone)
-    elif backbone == "vitb_rn18":
-        pretrained = 
-        scratch = _make_scratch(
-            [256, 512, 768, 768], features, groups=groups, expand=expand
-        ) 
+#     elif backbone == "vitb_rn18":
+#         pretrained = 
+#         scratch = _make_scratch(
+#             [256, 512, 768, 768], features, groups=groups, expand=expand
+#         ) 
     elif backbone == "vitb16_384":
         pretrained = _make_pretrained_vitb16_384(
             use_pretrained,

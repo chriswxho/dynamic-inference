@@ -53,6 +53,7 @@ class DepthMetrics:
         else:
             scale, shift = st
 #             mode = 'val_'
+        mode = ''
             
         prediction_aligned = scale * prediction + shift
 
