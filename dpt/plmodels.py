@@ -7,14 +7,14 @@ import torch
 import torch.optim as optim
 
 import pytorch_lightning as pl
-from dpt.models import DPTDepthModel
+from dpt.models import DPTDepthModel, ResNet18
 from data.metrics import SILog, DepthMetrics
 from util.misc import round_sig
 
 class InteriorNetDPT(pl.LightningModule):
     
     def __init__(self, batch_size: int, lr: float, num_epochs: int, model_path: str, 
-                 s=1, t=0, net_w=640, net_h=480, **kwargs):
+                 s=1, t=0, net_w=640, net_h=480, extractor='default', base='default', **kwargs):
         
         super().__init__()
         self.model = DPTDepthModel(
@@ -26,6 +26,9 @@ class InteriorNetDPT(pl.LightningModule):
                         non_negative=kwargs['non_negative'] if 'non_negative' in kwargs else True,
                         enable_attention_hooks=kwargs['enable_attention_hooks'] if 'enable_attention_hooks' in kwargs else False,
                      )
+        
+        if extractor == 'rn18':
+            self.model.pretrained.model.patch_embed = ResNet18()
         
         self.num_epochs = num_epochs
         self.model.pretrained.model.patch_embed.requires_grad = False

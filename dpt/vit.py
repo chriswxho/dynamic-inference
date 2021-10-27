@@ -175,6 +175,10 @@ def forward_flex(self, x):
             x = x[-1]  # last feature if backbone outputs list/tuple of features
 
     x = self.patch_embed.proj(x).flatten(2).transpose(1, 2).contiguous()
+    
+    # only use for rn18
+    if x.shape[-2] == 300:
+        x = F.interpolate(x.reshape(-1,*x.shape), scale_factor=(4,1), mode='bilinear').squeeze(0)
 
     if getattr(self, "dist_token", None) is not None:
         cls_tokens = self.cls_token.expand(

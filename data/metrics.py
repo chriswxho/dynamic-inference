@@ -49,10 +49,10 @@ class DepthMetrics:
             sp, tp = self.compute_scale_and_shift(prediction)
             scale = F.relu(sg/sp)
             shift = (tg - tp * scale)
-            mode = 'train_'
+#             mode = 'train_'
         else:
             scale, shift = st
-            mode = 'val_'
+#             mode = 'val_'
             
         prediction_aligned = scale * prediction + shift
 

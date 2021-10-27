@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import timm
+from timm.models.layers import SelectAdaptivePool2d
+
 from .base_model import BaseModel
 from .blocks import (
     FeatureFusionBlock,
@@ -151,3 +154,21 @@ class DPTSegmentationModel(DPT):
 
         if path is not None:
             self.load(path)
+
+class ResNet18(nn.Module):
+    def __init__(self):
+        super(ResNet18, self).__init__()
+        self.backbone = timm.create_model('resnet18')
+        self.backbone.global_pool = SelectAdaptivePool2d(pool_type='', flatten=False)
+        self.backbone.fc = nn.Identity()
+        self.proj = nn.Conv2d(512, 768, kernel_size=(1, 1), stride=(1, 1))
+        
+    def forward(self, x):
+        x = self.backbone(x)
+        if isinstance(x, (list, tuple)):
+            x = x[-1]  # last feature if backbone outputs list/tuple of features
+        x = self.proj(x).flatten(2).transpose(1, 2)
+        
+        # output of R18 feature map is (300, x) compared to R50 feature map (1200, x)
+        x = F.interpolate(x.reshape(-1,*x.shape), scale_factor=(4,1), mode='bilinear').squeeze(0)
+        return x
