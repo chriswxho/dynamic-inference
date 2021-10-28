@@ -34,11 +34,11 @@ class InteriorNetDPT(pl.LightningModule):
         self.model.pretrained.model.patch_embed.requires_grad = False
         
         self.save_hyperparameters()
-        self.metrics = DepthMetrics()
+        self.metrics = DepthMetrics(n_deltas=3)
         self.kwargs = kwargs
         
-        self.s = 1
-        self.t = 0
+        self.s = 1570.538
+        self.t = 0.999
         
         # s: 1570.5389404296875                                                           
         # t: 0.9992130994796753

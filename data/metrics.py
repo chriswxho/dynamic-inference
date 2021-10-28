@@ -49,11 +49,8 @@ class DepthMetrics:
             sp, tp = self.compute_scale_and_shift(prediction)
             scale = F.relu(sg/sp)
             shift = (tg - tp * scale)
-#             mode = 'train_'
         else:
             scale, shift = st
-#             mode = 'val_'
-        mode = ''
             
         prediction_aligned = scale * prediction + shift
 
@@ -61,10 +58,16 @@ class DepthMetrics:
         prediction_aligned[prediction_aligned > self.depth_cap] = self.depth_cap
 
         # absrel
-        metrics[f'{mode}absrel'] = (torch.abs(prediction_aligned[mask == 1] - target[mask == 1]) / target[mask == 1]).mean().item()
+        metrics['absrel'] = (torch.abs(prediction_aligned[mask == 1] - target[mask == 1]) / target[mask == 1]).mean().item()
 
         # mae
-        metrics[f'{mode}mae'] = torch.abs(prediction_aligned[mask == 1] - target[mask == 1]).mean().item()
+        metrics['mae'] = torch.abs(prediction_aligned[mask == 1] - target[mask == 1]).mean().item()
+        
+        # rmse
+        metrics['rmse'] = torch.sqrt((prediction_aligned[mask == 1] - target[mask == 1])**2).mean().item()
+        
+        # lg10
+        metrics['lg10'] = torch.abs(torch.log10(prediction_aligned[mask == 1]) - torch.log10(target[mask == 1])).mean().item()
         
         # delta acc
         for delta in range(self.n_deltas):
@@ -80,10 +83,10 @@ class DepthMetrics:
 
             p = torch.sum(acc, (1, 2)) / torch.sum(mask, (1, 2))
         
-            metrics[f'{mode}delta{delta+1}'] = torch.mean(p).item() # max acc is 1
+            metrics[f'delta{delta+1}'] = torch.mean(p).item() # max acc is 1
             
         if st is None:
             metrics['s'] = scale
             metrics['t'] = shift
             
-        return metrics     
+        return metrics
